@@ -1,0 +1,8 @@
+Use case: style-transfer.
+Asset type: transparent pixel-art character portrait for the top-right corner of a Game Boy Color portfolio webpage.
+Input image: reference photograph of Moby; preserve his recognizable facial features, warm dark brown skin, clear oversized glasses, black over-ear headphones, black cap with small white lettering, and yellow sweatshirt.
+Primary request: imagine Pixar created a Game Boy game. Reimagine this person as a charming animated character with a slightly oversized head, expressive friendly eyes, simplified appealing facial proportions, and a small upper torso, rendered as authentic carefully crafted pixel art.
+Composition: single centered head-and-shoulders bust, mostly front facing with a small playful head tilt, entire cap and headphones visible, no props or scene. Tight square framing with a little transparent margin. Face dominates, shoulders cropped neatly at bottom.
+Style: chunky crisp square pixel clusters, deliberate stepped edges, approximately a 128 by 128 pixel sprite enlarged cleanly. Limited muted Game Boy Color palette, warm browns, soft mustard yellow, charcoal cap/headphones, cream glasses highlights. A few flat shading levels, no smooth gradients, no photorealism, no glossy 3D rendering. Recognizable and readable at a small display size.
+Background: actual transparent alpha, no background, no checkerboard baked in, no border or badge.
+No additional text or logos outside the small existing cap lettering.

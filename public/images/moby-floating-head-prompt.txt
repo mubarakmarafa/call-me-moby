@@ -1,0 +1,8 @@
+Use case: style-transfer.
+Asset type: transparent floating-head portrait for Moby's personal portfolio.
+Input: the provided ORIGINAL photograph is the identity reference. Create a new stylized illustration from that photograph, not pixel art.
+Primary request: Moby as a very appealing Pixar-style animated adult character: soft, cute, expressive, subtly chibi proportions but unmistakably a grown man, not a child. Preserve his recognizable face shape, warm dark brown skin, nose, lips, subtle facial hair, clear-framed glasses, black cap, and black over-ear headphones. Friendly slight smile, curious warm eyes, slightly exaggerated proportions, simplified sculptural features.
+Composition: one isolated floating HEAD ONLY. No neck, no shoulders, no body, no yellow shirt. The silhouette ends naturally at the chin and jaw. Entire cap and headphones visible with a little transparent margin. Mostly front-facing with a gentle playful tilt; centered square canvas.
+Hat: remove all Invisible Friends lettering. Put ONE clear small ivory Photoshop-style pen-tool nib symbol centered on the front crown of the cap. Simple bold fountain-pen nib silhouette with a central hole and slit; readable at small sizes. No letters, no words, no Photoshop app badge.
+Style: polished soft 3D animated feature-film character render, smooth rounded forms, soft warm studio lighting, gentle dimensional shading, matte surfaces, controlled highlights. Cute and sophisticated adult character design. No pixelation, no pixel grid, no dither, no outlines, no gritty textures, no photorealistic pores.
+Background: actual transparent alpha. No floor, no backdrop, no frame, no checkerboard baked in, no cast shadow outside the head.

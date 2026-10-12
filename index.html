@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090a0b" />
+    <meta name="description" content="Moby's little corner of the internet. Insert a cartridge and get to know the designer behind the work." />
+    <title>call me moby</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="masthead">
+        <button class="sound-toggle" aria-pressed="true" aria-label="Turn sound off" title="Turn sound off"><span class="sound-bars"><i></i><i></i><i></i><i></i></span></button>
+      </header>
+      <main id="stage" aria-label="Interactive Game Boy portfolio">
+        <div id="webgl"></div>
+        <div id="html-scene"></div>
+        <div class="loading" role="status"><span class="loading-pixel"></span><span id="loading-label">Loading…</span></div>
+        <button id="power-hit" class="object-hit" aria-label="Turn on the Game Boy" disabled></button>
+        <button id="cartridge-hit" class="object-hit" aria-label="Insert the Moby cartridge" hidden></button>
+        <div class="sr-only" aria-live="polite"><span id="instruction-text">Click the Game Boy to begin.</span></div>
+        <div class="reader-tools" hidden><button id="eject" class="utility" aria-label="Eject cartridge" title="Eject cartridge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-8 6 8zM6 19h12"/></svg></button></div>
+        <div id="screen-content" class="lcd" inert>
+          <div class="boot" aria-hidden="true"><div class="boot-logo"></div><span class="boot-progress"></span></div>
+          <div class="lcd-scroll" role="region" aria-label="about moby" tabindex="0">
+            <article class="lcd-article">
+              <img class="portrait" data-lcd-effect src="/images/moby-floating-head.png" width="144" height="144" alt="stylized portrait of moby wearing clear glasses, headphones and a cap with a pen-nib symbol">
+              <h1>hi there.</h1>
+              <p>designer, tinkerer, curious by default.</p>
+              <p>i turn early ideas into things people can use. i care about how they work, how they feel, and the little details that make them click.</p>
+              <p>i'm from nigeria <span class="emoji" aria-hidden="true">🇳🇬</span>, grew up in hong kong <span class="emoji" aria-hidden="true">🇭🇰</span>, and now live in london <span class="emoji" aria-hidden="true">🇬🇧</span>.</p>
+              <p>at goodnotes, i helped bring goodnotes classroom from an early idea to launch. these days, i'm exploring how people can work and create with ai.</p>
+              <p>i think by making: a sketch, a prototype, a conversation, another version.</p>
+              <p>i like useful tools with a little personality. things that invite you to try, tinker, and discover something for yourself.</p>
+              <p><a href="https://www.linkedin.com/in/mubarakmarafa/" target="_blank" rel="noopener noreferrer">say hello ↗</a></p>
+            </article>
+          </div>
+        </div>
+        <dialog id="plain-about" aria-labelledby="plain-about-title"><button id="close-about" aria-label="Close introduction">×</button><span class="eyebrow">THE PERSONAL EDITION</span><h2 id="plain-about-title">Hi, I'm Moby.</h2><p class="plain-lead">Designer. Tinkerer. Curious by default.</p><p>I'm Mubarak Marafa, a Staff Design Engineer based in London. From Nigeria, raised in Hong Kong.</p><p>I turn early ideas into things people can use. My work has included helping bring Goodnotes Classroom from an early idea to launch. These days, I'm exploring how people can work and create with AI.</p><p>I think by making: a sketch, a prototype, a conversation, another version. I care about how things work, how they feel, and the little details that make them click.</p><a href="https://www.linkedin.com/in/mubarakmarafa/" target="_blank" rel="noopener noreferrer">Say hello on LinkedIn ↗</a></dialog>
+      </main>
+      <footer><button id="read-instead" class="utility" aria-label="Read about Moby" title="Read about Moby"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v6M12 7v1"/></svg></button>
+        <nav class="social-links" aria-label="Social links">
+          <a href="https://www.linkedin.com/in/mubarakmarafa/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn"><img src="/images/social/linkedin.svg" alt="" /></a>
+          <a href="https://x.com/mubarak_marafa" target="_blank" rel="noopener noreferrer" aria-label="Twitter" title="Twitter"><img src="/images/social/twitter.svg" alt="" /></a>
+          <a href="https://www.youtube.com/@MubarakMarafa" target="_blank" rel="noopener noreferrer" aria-label="YouTube" title="YouTube"><img src="/images/social/youtube.svg" alt="" /></a>
+          <a class="cv-link" href="/cv/mubarak-marafa-cv.pdf" target="_blank" rel="noopener noreferrer" aria-label="Open Moby's CV (PDF, new tab)" title="CV (PDF)">cv</a>
+        </nav>
+        <details class="credits"><summary>Model credits</summary><div>Game Boy Color by <a href="https://sketchfab.com/wikiti" target="_blank" rel="noopener noreferrer">Wikiti</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a><br>Recoloured shell, replacement screen; built-in cartridge removed.<br><a href="https://sketchfab.com/3d-models/game-boy-color-03c6fe28d45244d2acd55486e3cfee19" target="_blank" rel="noopener noreferrer">Original model ↗</a><br><br>Gameboy Cartridge lowpoly by <a href="https://sketchfab.com/MeBob" target="_blank" rel="noopener noreferrer">Bob</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a><br>Replacement Moby label; adjusted materials and scale.<br><a href="https://sketchfab.com/3d-models/gameboy-cartridge-lowpoly-8b9728eab16c4056ac2636ae7f0f038f" target="_blank" rel="noopener noreferrer">Original cartridge ↗</a></div></details></footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
