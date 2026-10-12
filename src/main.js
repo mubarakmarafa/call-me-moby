@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { splitConsoleControls, directionalCartridge } from './console-controls.js';
 import { setupDeviceTilt } from './device-tilt.js';
 import { screenProjectionMatrix } from './screen-projection.js';
 import { gsap } from 'gsap';
@@ -43,6 +44,8 @@ const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-bui
 const cartridges = [];
 const cartridgeMotion = cartHits.map(() => ({ hovered: false, lift: 0, cursorX: 0, cursorY: 0, tiltX: 0, tiltY: 0 }));
 let activeCartridge = 0;
+let controlSelection = -1;
+const consoleControls = {};
 const instruction = $('#instruction-text');
 const screenElement = $('#screen-content');
 const aboutArticle = screenElement.querySelector('.lcd-article').innerHTML;
@@ -93,7 +96,7 @@ function sound(type) {
   if (!soundEnabled) return;
   audioContext ??= new (window.AudioContext || window.webkitAudioContext)();
   audioContext.resume();
-  if (type === 'snap' || type === 'eject') {
+  if (type === 'snap' || type === 'eject' || type === 'press') {
     const ejecting = type === 'eject';
     const now = audioContext.currentTime;
     const noise = audioContext.createBuffer(1, Math.ceil(audioContext.sampleRate * .025), audioContext.sampleRate);
@@ -105,7 +108,7 @@ function sound(type) {
     filter.type = ejecting ? 'lowpass' : 'highpass';
     filter.frequency.value = ejecting ? 950 : 1400;
     const clickGain = audioContext.createGain();
-    clickGain.gain.setValueAtTime(ejecting ? .018 : .045, now);
+    clickGain.gain.setValueAtTime(type==='press'?.014:ejecting ? .018 : .045, now);
     clickGain.gain.exponentialRampToValueAtTime(.0001, now + .025);
     click.connect(filter);filter.connect(clickGain);clickGain.connect(audioContext.destination);
     click.start(now);
@@ -115,7 +118,7 @@ function sound(type) {
     body.frequency.exponentialRampToValueAtTime(ejecting ? 120 : 85, now + .055);
     const bodyGain = audioContext.createGain();
     bodyGain.gain.setValueAtTime(0, now);
-    bodyGain.gain.linearRampToValueAtTime(ejecting ? .027 : .035, now + .002);
+    bodyGain.gain.linearRampToValueAtTime(type==='press'?.012:ejecting ? .027 : .035, now + .002);
     bodyGain.gain.exponentialRampToValueAtTime(.0001, now + (ejecting ? .085 : .065));
     body.connect(bodyGain);bodyGain.connect(audioContext.destination);
     body.start(now);body.stop(now + (ejecting ? .09 : .07));
@@ -243,11 +246,16 @@ async function init() {
       mat.customProgramCacheKey=()=> 'unprinted-glass-bezel-v1';
     }
     if(mat.name==='Plastic'){mat.roughness=.94;mat.metalness=0;mat.envMapIntensity=.18;}
+    if(mat.name==='Plastic'){
+      Object.assign(consoleControls,splitConsoleControls(geometry,mat));
+      for(const control of Object.values(consoleControls))rig.add(control.mesh);
+    }
     const mesh=new THREE.Mesh(geometry,mat);
     rig.add(mesh);
     if(mat.name==='Glass')bezel=mesh;
     if(mat.name==='Case')shell=mesh;
   });
+  setupConsoleControls();
   await addStickers(bezel,shell,rig,renderer);
   const originalPoint=new THREE.Vector3(.03858,-.35803,.34718).applyMatrix4(glassOriginal.matrixWorld);
   screenPosition=originalPoint.sub(center).multiplyScalar(normalize);screenPosition.z+=.009;
@@ -366,7 +374,7 @@ function animate() {
     const speed=[1.04,1.37,.91,1.17][index];
     const amplitude=[.10,.085,.095,.09][index];
     const moving=!reducedMotion;
-    motion.lift=THREE.MathUtils.lerp(motion.lift,moving&&canHover.matches&&motion.hovered?1:0,follow);
+    motion.lift=THREE.MathUtils.lerp(motion.lift,moving&&((canHover.matches&&motion.hovered)||controlSelection===index)?1:0,follow);
     const tracking=moving&&canHover.matches&&motion.hovered;
     motion.tiltX=THREE.MathUtils.lerp(motion.tiltX,tracking?motion.cursorY*.10:0,follow);
     motion.tiltY=THREE.MathUtils.lerp(motion.tiltY,tracking?motion.cursorX*.12:0,follow);
@@ -382,14 +390,68 @@ function animate() {
   if(cartridgePrompt?.visible){
     const hoverIndex=cartridgeMotion.findIndex(motion=>motion.hovered);
     const focusIndex=cartHits.findIndex(hit=>hit===document.activeElement&&hit.matches(':focus-visible'));
-    updateCartridgePrompt(pointer?activeCartridge:state==='ready'?(hoverIndex>=0?hoverIndex:focusIndex):-1);
+    updateCartridgePrompt(pointer?activeCartridge:state==='ready'?(hoverIndex>=0?hoverIndex:focusIndex>=0?focusIndex:controlSelection):-1);
   }
   if(state==='dragging'&&pointer?.dragged)updateMagneticDrag(delta);
   if(state==='idle'||state==='ready')positionHit(powerHit,rig,2.85,4.8);
   if(state==='ready'){
     cartridges.forEach((cart,index)=>positionHit(cartHits[index],cart,1.85*FLOATING_CARTRIDGE_SCALE,2.1*FLOATING_CARTRIDGE_SCALE));
   }
+  updateConsoleControls();
   renderer.render(scene,camera);updateScreenProjection();
+}
+
+
+function setupConsoleControls() {
+  for(const [name,control] of Object.entries(consoleControls)){
+    const hit=document.createElement('button');
+    hit.className='console-hit';hit.hidden=true;
+    hit.setAttribute('aria-label',name==='pad'?'D-pad: choose a cartridge with arrow keys':name==='a'?'A: insert selected cartridge':'B: eject cartridge');
+    $('#stage').appendChild(hit);control.hit=hit;
+    const press=()=>{
+      gsap.killTweensOf(control.mesh.position);
+      gsap.to(control.mesh.position,{z:control.center.z-.045,duration:reducedMotion?0:.055,overwrite:true});
+    };
+    const release=()=>gsap.to(control.mesh.position,{z:control.center.z,duration:reducedMotion?0:.14,ease:'back.out(1.4)',overwrite:true});
+    hit.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.stopPropagation();hit.setPointerCapture(e.pointerId);press();});
+    hit.addEventListener('pointerup',release);hit.addEventListener('pointercancel',release);hit.addEventListener('lostpointercapture',release);
+    hit.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(pointer||!['idle','ready','reading'].includes(state))return;
+      if(e.detail===0){press();gsap.delayedCall(.07,release);}
+      sound('press');
+      if(name==='a'){
+        if(state==='idle')powerOn();else if(state==='ready')loadCartridge();
+      }else if(name==='b'){
+        if(state==='reading')eject();
+        else if(cartridgePrompt?.visible){gsap.fromTo(cartridgePrompt.scale,{x:.95,y:.95},{x:1,y:1,duration:duration(.2),ease:'back.out(2)'});}
+      }else if(state!=='reading'){
+        const r=hit.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;
+        chooseWithPad(e.detail===0?'right':Math.abs(x)>Math.abs(y)?x>0?'right':'left':y>0?'down':'up');
+      }
+    });
+    if(name==='pad')hit.addEventListener('keydown',e=>{
+      const direction={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];
+      if(!direction||!['idle','ready'].includes(state)||pointer)return;
+      e.preventDefault();e.stopPropagation();press();gsap.delayedCall(.07,release);sound('press');chooseWithPad(direction);
+    });
+  }
+}
+function chooseWithPad(direction){
+  if(state==='idle'){powerOn();controlSelection=activeCartridge;return;}
+  if(state!=='ready')return;
+  const index=directionalCartridge(activeCartridge,direction,cartridges.map((_,i)=>cartHome(i)));
+  selectCartridge(index);controlSelection=index;
+  instruction.textContent=`${cartridgeNames[index]} selected. Press A to insert.`;
+}
+function updateConsoleControls(){
+  for(const [name,control] of Object.entries(consoleControls)){
+    if(!control.hit)continue;
+    const visible=!pointer&&(['idle','ready'].includes(state)||(state==='reading'&&name==='b'));
+    const world=rig.localToWorld(control.center.clone());const p=project(world);
+    control.hit.hidden=!visible||p.x<0||p.x>width||p.y<0||p.y>height;
+    if(!control.hit.hidden)positionHit(control.hit,control.mesh,name==='pad'?.65:.34,name==='pad'?.65:.34,world);
+  }
 }
 
 function powerOn() {
@@ -511,12 +573,13 @@ hit.addEventListener('pointerenter',e=>{cartridgeMotion[index].hovered=e.pointer
 hit.addEventListener('pointerleave',()=>{cartridgeMotion[index].hovered=false;});
 hit.addEventListener('pointerdown',(e)=>{
   if(state!=='ready'||e.button!==0)return;
+  controlSelection=-1;
   selectCartridge(index);
   const depth=cartridge.position.z;
   pointer={id:e.pointerId,x:e.clientX,y:e.clientY,depth,offset:cartridge.position.clone().sub(pointerWorld(e,depth)),raw:cartridge.position.clone(),magnetized:false,dragged:false};
   cartHit.setPointerCapture(e.pointerId);
   gsap.killTweensOf(pose);
-  gsap.to(pose,{z:receivingDepth,duration:reducedMotion?0:.24,ease:'power3.out'});
+  gsap.to(pose,{z:receivingPose().z,duration:reducedMotion?0:.24,ease:'power3.out'});
 });
 hit.addEventListener('pointermove',(e)=>{
   trackCursor(e);
