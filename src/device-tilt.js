@@ -9,18 +9,12 @@ export function relativeTilt(beta, gamma, origin, angle = 0) {
     y: clamp(y * Math.cos(radians) - x * Math.sin(radians)) };
 }
 
-export function setupDeviceTilt(button, status, onChange) {
+export function setupDeviceTilt(status, onChange) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const touch = matchMedia('(pointer: coarse)');
   const supported = window.isSecureContext && 'DeviceOrientationEvent' in window;
-  let enabled = false, origin = null, timeout;
+  let requested = false, disposed = false, origin = null, timeout;
   const reset = () => { origin = null; onChange(0, 0); };
-  const updateButton = () => {
-    button.hidden = !supported || !touch.matches || reduced.matches;
-    button.setAttribute('aria-pressed', String(enabled));
-    button.setAttribute('aria-label', enabled ? 'Turn device tilt off' : 'Enable device tilt');
-    button.title = enabled ? 'Turn device tilt off' : 'Enable device tilt';
-  };
   function receive(event) {
     if (document.hidden || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
     clearTimeout(timeout);
@@ -30,14 +24,13 @@ export function setupDeviceTilt(button, status, onChange) {
     onChange(tilt.x, tilt.y);
   }
   function stop() {
-    enabled = false;
     clearTimeout(timeout);
     window.removeEventListener('deviceorientation', receive);
-    reset(); updateButton();
+    reset();
   }
-  async function toggle() {
-    if (enabled) { stop(); return; }
-    button.disabled = true;
+  async function request() {
+    if (requested || disposed || !supported || reduced.matches || !touch.matches) return;
+    requested = true;
     try {
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         const permission = await DeviceOrientationEvent.requestPermission();
@@ -46,8 +39,8 @@ export function setupDeviceTilt(button, status, onChange) {
           return;
         }
       }
-      if (reduced.matches || !touch.matches) return;
-      enabled = true; reset(); updateButton();
+      if (disposed || reduced.matches || !touch.matches) return;
+      reset();
       window.addEventListener('deviceorientation', receive, { passive: true });
       status.textContent = 'Device tilt on. Hold your phone comfortably and tilt gently.';
       timeout = setTimeout(() => {
@@ -55,19 +48,17 @@ export function setupDeviceTilt(button, status, onChange) {
       }, 3000);
     } catch {
       stop(); status.textContent = 'Device tilt is unavailable. You can still tap or drag the cartridges.';
-    } finally { button.disabled = false; }
+    }
   }
-  const preferencesChanged = () => { if (reduced.matches || !touch.matches) stop(); updateButton(); };
+  const preferencesChanged = () => { if (reduced.matches || !touch.matches) stop(); };
   const visibilityChanged = () => reset();
-  button.addEventListener('click', toggle);
   document.addEventListener('visibilitychange', visibilityChanged);
   reduced.addEventListener('change', preferencesChanged);
   touch.addEventListener('change', preferencesChanged);
-  updateButton();
-  return () => {
-    stop(); button.removeEventListener('click', toggle);
+  return { request, destroy() {
+    disposed = true; stop();
     document.removeEventListener('visibilitychange', visibilityChanged);
     reduced.removeEventListener('change', preferencesChanged);
     touch.removeEventListener('change', preferencesChanged);
-  };
+  } };
 }

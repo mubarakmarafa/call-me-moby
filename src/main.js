@@ -79,7 +79,7 @@ const gazeTarget = new THREE.Vector2();
 const gaze = new THREE.Vector2();
 const deviceTarget = new THREE.Vector2();
 const deviceGaze = new THREE.Vector2();
-const destroyDeviceTilt = setupDeviceTilt($('.tilt-toggle'), $('#tilt-status'), (x,y) => deviceTarget.set(x,y));
+const deviceTilt = setupDeviceTilt($('#tilt-status'), (x,y) => deviceTarget.set(x,y));
 const duration = (n) => reducedMotion ? Math.min(n, .06) : n;
 const setState = (next) => {
   state = next;
@@ -353,8 +353,8 @@ function animate() {
   const deviceAttentive=resting&&!pointer&&!reducedMotion&&!$('#plain-about').open;
   deviceGaze.x=THREE.MathUtils.lerp(deviceGaze.x,deviceAttentive?deviceTarget.x:0,follow);
   deviceGaze.y=THREE.MathUtils.lerp(deviceGaze.y,deviceAttentive?deviceTarget.y:0,follow);
-  rig.position.set(pose.x-deviceGaze.x*.035,pose.y+bob+deviceGaze.y*.025,pose.z+hoverAmount);
-  rig.rotation.set(pose.rx+gaze.y*.11+deviceGaze.y*.065-hoverAmount*.10,pose.ry+gaze.x*.20+deviceGaze.x*.09,pose.rz-gaze.x*.018);
+  rig.position.set(pose.x-deviceGaze.x*.044,pose.y+bob+deviceGaze.y*.031,pose.z+hoverAmount);
+  rig.rotation.set(pose.rx+gaze.y*.11+deviceGaze.y*.08-hoverAmount*.10,pose.ry+gaze.x*.20+deviceGaze.x*.11,pose.rz-gaze.x*.018);
   camera.lookAt(cameraTarget);camera.updateMatrixWorld();rig.updateMatrixWorld();
 
   cartridges.forEach((cart,index)=>{
@@ -372,11 +372,11 @@ function animate() {
     motion.tiltY=THREE.MathUtils.lerp(motion.tiltY,tracking?motion.cursorX*.12:0,follow);
     const drift=moving?Math.sin(elapsed*speed+phase)*amplitude:0;
     const sway=moving?Math.sin(elapsed*speed*.58+phase)*.028:0;
-    cart.position.x=THREE.MathUtils.lerp(cart.position.x,home.x+sway+deviceGaze.x*.13,follow);
-    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09-deviceGaze.y*.10,follow);
+    cart.position.x=THREE.MathUtils.lerp(cart.position.x,home.x+sway+deviceGaze.x*.16,follow);
+    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09-deviceGaze.y*.125,follow);
     cart.position.z=THREE.MathUtils.lerp(cart.position.z,home.z+motion.lift*.7,follow);
-    cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX+deviceGaze.y*.025;
-    cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.04;
+    cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX+deviceGaze.y*.031;
+    cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.05;
     cart.rotation.z=rotation.z+(moving?Math.sin(elapsed*speed*.7+phase)*.032:0);
   });
   if(cartridgePrompt?.visible){
@@ -394,6 +394,7 @@ function animate() {
 
 function powerOn() {
   if(state!=='idle')return;
+  void deviceTilt.request();
   setState('waking');sound('tick');powerHit.disabled=true;
   ledMaterial.color.set(0xff1428);rig.getObjectByName('power-glow').material.opacity=.5;
   instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk or World-building. Drag it onto the Game Boy, or press Enter to insert.';
@@ -716,5 +717,5 @@ init().catch((error)=>{
 });
 
 if(import.meta.hot){
-  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();destroyDeviceTilt();stageObserver.disconnect();window.removeEventListener('resize',resizeScene);});
+  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();deviceTilt.destroy();stageObserver.disconnect();window.removeEventListener('resize',resizeScene);});
 }

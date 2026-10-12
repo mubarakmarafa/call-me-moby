@@ -131,6 +131,3 @@ body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .u
 .lcd-image-gallery > div { position: absolute; inset: 0; }
 
 .masthead{display:flex;align-items:center;gap:4px}
-.tilt-toggle{display:grid;place-items:center;width:44px;height:44px;color:#777b76;touch-action:manipulation}
-.tilt-toggle[aria-pressed=true]{color:#e5c449}
-.tilt-toggle svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
