@@ -434,7 +434,7 @@ function setupConsoleControls() {
     const hit=document.createElement('button');
     hit.className='console-hit';hit.hidden=true;
     if(name==='start'||name==='select')hit.classList.add('console-hit-small');
-    hit.setAttribute('aria-label',name==='pad'?'D-pad: choose a cartridge with arrow keys':{a:'A: insert selected cartridge',b:'B: eject cartridge',start:'Start: wake Game Boy and show cartridges',select:'Select: toggle sound'}[name]);
+    hit.setAttribute('aria-label',name==='pad'?'D-pad: choose a cartridge with arrow keys':{a:'A: insert selected cartridge',b:'B: dismiss cartridges or eject loaded cartridge',start:'Start: wake Game Boy and show cartridges',select:'Select: toggle sound'}[name]);
     $('#stage').appendChild(hit);control.hit=hit;
     const press=()=>{
       gsap.killTweensOf(control.mesh.position);
@@ -456,7 +456,7 @@ function setupConsoleControls() {
         if(state==='idle')powerOn();else if(state==='ready')loadCartridge();
       }else if(name==='b'){
         if(state==='reading')eject();
-        else if(cartridgePrompt?.visible){gsap.fromTo(cartridgePrompt.scale,{x:.95,y:.95},{x:1,y:1,duration:duration(.2),ease:'back.out(2)'});}
+        else if(state==='ready')dismissCartridge(e.detail===0);
       }else if(state!=='reading'){
         const r=hit.getBoundingClientRect(),x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;
         chooseWithPad(e.detail===0?'right':Math.abs(x)>Math.abs(y)?x>0?'right':'left':y>0?'down':'up');
