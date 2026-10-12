@@ -54,7 +54,7 @@ body[data-state=reading] .lcd{pointer-events:auto}
 body[data-state=reading] footer{background:linear-gradient(transparent,#090a0b 80%);padding-top:48px}
 body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .utility{background:#090a0bb3}
 /* The live HTML remains the scroll and accessibility surface; the canvas renders its pixels. */
-.lcd{position:absolute;width:640px;height:565px;background:#0b0e0b;border:12px solid #0b0e0b;color:#263421;overflow:hidden;border-radius:22px;backface-visibility:hidden;opacity:0;text-transform:lowercase;font-family:'Geist Mono',monospace;pointer-events:none}
+.lcd{position:absolute;top:0;left:0;transform-origin:0 0;width:640px;height:565px;background:#0b0e0b;border:12px solid #0b0e0b;color:#263421;overflow:hidden;border-radius:22px;backface-visibility:hidden;opacity:0;text-transform:lowercase;font-family:'Geist Mono',monospace;pointer-events:none}
 .lcd-effect{border-radius:10px;position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0}
 .lcd-scroll{border-radius:10px;position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none;outline:none}
 .lcd-scroll::-webkit-scrollbar{display:none}

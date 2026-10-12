@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+import { screenProjectionMatrix } from './screen-projection.js';
 import { gsap } from 'gsap';
 import '@fontsource/space-mono/latin-400.css';
 import '@fontsource/space-mono/latin-700.css';
@@ -62,11 +62,13 @@ function showCartridgeContent() {
 const pose = { x: 0, y: 0, z: 0, rx: .09, ry: -.30, rz: -.085 };
 const cameraTarget = new THREE.Vector3();
 let state = 'loading';
-let renderer, cssRenderer, scene, cssScene, camera, rig, cssRig, cartridge, screenObject, screenPosition, screenWidth, screenHeight, ledMaterial;
+let renderer, scene, camera, rig, cartridge, screenObject, screenPosition, screenWidth, screenHeight, ledMaterial;
 let hovered = false, hoverAmount = 0, soundEnabled = true, audioContext;
 let pointer = null, transition = null;
 let lcdScreen, destroyLcdControls;
-let width = innerWidth, height = innerHeight;
+let width = $('#stage').clientWidth, height = $('#stage').clientHeight;
+const screenClipMatrix = new THREE.Matrix4();
+const screenLocalMatrix = new THREE.Matrix4();
 let screenBlack, cartridgePrompt, updateCartridgePrompt;
 const raycaster = new THREE.Raycaster();
 const clock = new THREE.Clock();
@@ -178,8 +180,7 @@ async function init() {
   const fill=new THREE.RectAreaLight(0xf2f4ff,1.1,6,8);fill.position.set(4,1,5);fill.lookAt(0,0,0);scene.add(fill);
   const rim=new THREE.DirectionalLight(0xfff3cf,.45);rim.position.set(0,3,-5);scene.add(rim);
   rig=new THREE.Group();scene.add(rig);
-  cssRenderer=new CSS3DRenderer();cssRenderer.setSize(width,height);$('#html-scene').appendChild(cssRenderer.domElement);cssRenderer.domElement.style.pointerEvents='none';
-  cssScene=new THREE.Scene();cssRig=new THREE.Group();cssScene.add(cssRig);
+  $('#html-scene').appendChild(screenElement);
   await loadBrandFont();
   $('.boot-logo').replaceChildren(createWordmark(false));
   const loader = new GLTFLoader();
@@ -275,7 +276,7 @@ async function init() {
   cartridgePrompt=new THREE.Mesh(screenBlack.geometry,new THREE.MeshBasicMaterial({map:promptTexture,toneMapped:false}));
   cartridgePrompt.position.copy(screenPosition);cartridgePrompt.position.z+=.002;
   cartridgePrompt.visible=false;rig.add(cartridgePrompt);
-  screenObject=new CSS3DObject(screenElement);screenObject.position.copy(screenPosition);screenObject.position.z+=.004;updateScreenSize();cssRig.add(screenObject);
+  screenObject=new THREE.Object3D();screenObject.position.copy(screenPosition);screenObject.position.z+=.004;rig.add(screenObject);updateScreenSize();
   try {
     lcdScreen=new LcdScreen(screenElement);
     lcdScreen.prepareBoot($('.boot-logo canvas'));
@@ -347,7 +348,7 @@ function animate() {
   rig.position.set(pose.x,pose.y+bob,pose.z+hoverAmount);
   rig.rotation.set(pose.rx+gaze.y*.11-hoverAmount*.10,pose.ry+gaze.x*.20,pose.rz-gaze.x*.018);
   camera.lookAt(cameraTarget);camera.updateMatrixWorld();rig.updateMatrixWorld();
-  cssRig.position.copy(rig.position);cssRig.quaternion.copy(rig.quaternion);
+
   cartridges.forEach((cart,index)=>{
     const motion=cartridgeMotion[index];
     if(state!=='ready') { motion.hovered=false;motion.lift=0;motion.tiltX=0;motion.tiltY=0;return; }
@@ -380,7 +381,7 @@ function animate() {
   if(state==='ready'){
     cartridges.forEach((cart,index)=>positionHit(cartHits[index],cart,1.85*FLOATING_CARTRIDGE_SCALE,2.1*FLOATING_CARTRIDGE_SCALE,cartHome(index)));
   }
-  renderer.render(scene,camera);cssRenderer.render(cssScene,camera);
+  renderer.render(scene,camera);updateScreenProjection();
 }
 
 function powerOn() {
@@ -542,7 +543,21 @@ function returnCartridge() {
 function updateScreenSize() {
   const compact = mobile();
   screenElement.classList.toggle('compact',compact);
-  screenObject.scale.set(screenWidth/(compact?420:640),screenHeight/(compact?371:565),screenWidth/640);
+  screenLocalMatrix.set(
+    screenWidth/(compact?420:640),0,0,-screenWidth/2,
+    0,-screenHeight/(compact?371:565),0,screenHeight/2,
+    0,0,1,0,
+    0,0,0,1,
+  );
+}
+
+function updateScreenProjection() {
+  if (!screenObject || screenElement.style.opacity !== '1') return;
+  screenClipMatrix.copy(camera.projectionMatrix)
+    .multiply(camera.matrixWorldInverse)
+    .multiply(screenObject.matrixWorld)
+    .multiply(screenLocalMatrix);
+  screenElement.style.transform = `matrix3d(${screenProjectionMatrix(screenClipMatrix.elements,width,height).join(',')})`;
 }
 
 function readingView() {
@@ -672,16 +687,19 @@ function eject() {
   });
 }
 $('#eject').addEventListener('click',eject);
-window.addEventListener('resize',()=>{
-  width=innerWidth;height=innerHeight;
+function resizeScene(){
+  width=$('#stage').clientWidth;height=$('#stage').clientHeight;
   if(!renderer)return;
-  renderer.setSize(width,height);cssRenderer.setSize(width,height);if(screenObject)updateScreenSize();camera.aspect=width/height;camera.updateProjectionMatrix();
+  renderer.setSize(width,height);if(screenObject)updateScreenSize();camera.aspect=width/height;camera.updateProjectionMatrix();
   if(state==='reading'){
     const view=readingView();camera.position.set(view.target.x,view.target.y,view.distance);cameraTarget.copy(view.target);
   }else if(state==='idle'||state==='ready'){
     camera.position.set(0,0,cameraDistance());Object.assign(pose,state==='idle'?homePose():readyPose());if(state==='ready')cartridges.forEach((cart,index)=>cart.position.copy(cartHome(index)));
   }
-});
+}
+window.addEventListener('resize',resizeScene);
+const stageObserver=new ResizeObserver(resizeScene);
+stageObserver.observe($('#stage'));
 
 init().catch((error)=>{
   console.error('Could not load the Game Boy:',error);
@@ -690,5 +708,5 @@ init().catch((error)=>{
 });
 
 if(import.meta.hot){
-  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();});
+  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();stageObserver.disconnect();window.removeEventListener('resize',resizeScene);});
 }
