@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { setupDeviceTilt } from './device-tilt.js';
 import { screenProjectionMatrix } from './screen-projection.js';
 import { gsap } from 'gsap';
 import '@fontsource/space-mono/latin-400.css';
@@ -76,6 +77,9 @@ const pointerNdc = new THREE.Vector2();
 const canHover = matchMedia('(hover: hover) and (pointer: fine)');
 const gazeTarget = new THREE.Vector2();
 const gaze = new THREE.Vector2();
+const deviceTarget = new THREE.Vector2();
+const deviceGaze = new THREE.Vector2();
+const destroyDeviceTilt = setupDeviceTilt($('.tilt-toggle'), $('#tilt-status'), (x,y) => deviceTarget.set(x,y));
 const duration = (n) => reducedMotion ? Math.min(n, .06) : n;
 const setState = (next) => {
   state = next;
@@ -83,6 +87,7 @@ const setState = (next) => {
   if (cartridgePrompt) cartridgePrompt.visible = ['waking', 'ready', 'dragging', 'returning'].includes(next);
 };
 const mobile = () => width < 600;
+const needsDepthSeparation = () => mobile() || matchMedia('(pointer: coarse)').matches;
 
 function sound(type) {
   if (!soundEnabled) return;
@@ -160,11 +165,11 @@ function cartEdge(index) {
   home.x = Math.sign(home.x) * (halfWidth + 1.3);
   return home;
 }
-function readyPose() { return {x:0,y:0,z:mobile()?.65:1.25,rx:.07,ry:-.16,rz:-.035}; }
+function readyPose() { return {x:0,y:0,z:needsDepthSeparation()?-2:1.25,rx:.07,ry:-.16,rz:-.035}; }
 const receivingDepth = -1.5;
 function receivingPose() {
   const side=activeCartridge===1||activeCartridge===2?-1:1;
-  return {x:0,y:-.06,z:receivingDepth,rx:.16,ry:Math.PI-side*.12,rz:side*.025};
+  return {x:0,y:-.06,z:needsDepthSeparation()?-2.6:receivingDepth,rx:.16,ry:Math.PI-side*.12,rz:side*.025};
 }
 
 async function init() {
@@ -345,8 +350,11 @@ function animate() {
   gaze.y=THREE.MathUtils.lerp(gaze.y,attentive?gazeTarget.y:0,follow);
   hoverAmount=THREE.MathUtils.lerp(hoverAmount,attentive&&hovered?.25:0,follow);
   const bob=resting&&!pointer&&!reducedMotion ? Math.sin(elapsed*1.25)*.055 : 0;
-  rig.position.set(pose.x,pose.y+bob,pose.z+hoverAmount);
-  rig.rotation.set(pose.rx+gaze.y*.11-hoverAmount*.10,pose.ry+gaze.x*.20,pose.rz-gaze.x*.018);
+  const deviceAttentive=resting&&!pointer&&!reducedMotion&&!$('#plain-about').open;
+  deviceGaze.x=THREE.MathUtils.lerp(deviceGaze.x,deviceAttentive?deviceTarget.x:0,follow);
+  deviceGaze.y=THREE.MathUtils.lerp(deviceGaze.y,deviceAttentive?deviceTarget.y:0,follow);
+  rig.position.set(pose.x-deviceGaze.x*.035,pose.y+bob+deviceGaze.y*.025,pose.z+hoverAmount);
+  rig.rotation.set(pose.rx+gaze.y*.11+deviceGaze.y*.065-hoverAmount*.10,pose.ry+gaze.x*.20+deviceGaze.x*.09,pose.rz-gaze.x*.018);
   camera.lookAt(cameraTarget);camera.updateMatrixWorld();rig.updateMatrixWorld();
 
   cartridges.forEach((cart,index)=>{
@@ -364,11 +372,11 @@ function animate() {
     motion.tiltY=THREE.MathUtils.lerp(motion.tiltY,tracking?motion.cursorX*.12:0,follow);
     const drift=moving?Math.sin(elapsed*speed+phase)*amplitude:0;
     const sway=moving?Math.sin(elapsed*speed*.58+phase)*.028:0;
-    cart.position.x=THREE.MathUtils.lerp(cart.position.x,home.x+sway,follow);
-    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09,follow);
+    cart.position.x=THREE.MathUtils.lerp(cart.position.x,home.x+sway+deviceGaze.x*.13,follow);
+    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09-deviceGaze.y*.10,follow);
     cart.position.z=THREE.MathUtils.lerp(cart.position.z,home.z+motion.lift*.7,follow);
-    cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX;
-    cart.rotation.y=rotation.y+motion.tiltY;
+    cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX+deviceGaze.y*.025;
+    cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.04;
     cart.rotation.z=rotation.z+(moving?Math.sin(elapsed*speed*.7+phase)*.032:0);
   });
   if(cartridgePrompt?.visible){
@@ -379,7 +387,7 @@ function animate() {
   if(state==='dragging'&&pointer?.dragged)updateMagneticDrag(delta);
   if(state==='idle'||state==='ready')positionHit(powerHit,rig,2.85,4.8);
   if(state==='ready'){
-    cartridges.forEach((cart,index)=>positionHit(cartHits[index],cart,1.85*FLOATING_CARTRIDGE_SCALE,2.1*FLOATING_CARTRIDGE_SCALE,cartHome(index)));
+    cartridges.forEach((cart,index)=>positionHit(cartHits[index],cart,1.85*FLOATING_CARTRIDGE_SCALE,2.1*FLOATING_CARTRIDGE_SCALE));
   }
   renderer.render(scene,camera);updateScreenProjection();
 }
@@ -390,14 +398,14 @@ function powerOn() {
   ledMaterial.color.set(0xff1428);rig.getObjectByName('power-glow').material.opacity=.5;
   instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk or World-building. Drag it onto the Game Boy, or press Enter to insert.';
   transition=gsap.timeline({onComplete:()=>{setState('ready');cartHits.forEach(hit=>hit.hidden=false);powerHit.hidden=true;cartHit.focus({preventScroll:true});}});
-  transition.to(pose,{...readyPose(),duration:reducedMotion?0:.45,ease:'power3.inOut'},0);
+  transition.to(pose,{...readyPose(),duration:reducedMotion?0:needsDepthSeparation()?.7:.45,ease:'power3.inOut'},0);
   cartridges.forEach((cart,index)=>{
     const rotation=cartRotation(index);
     cart.visible=true;cart.scale.setScalar(FLOATING_CARTRIDGE_SCALE);
     cart.position.copy(reducedMotion?cartHome(index):cartEdge(index));
     cart.rotation.set(rotation.x,rotation.y,rotation.z+(reducedMotion?0:Math.sign(cartHome(index).x)*.12));
-    transition.to(cart.position,{...cartHome(index),duration:reducedMotion?0:.48,ease:'power3.out'},0);
-    transition.to(cart.rotation,{...rotation,duration:reducedMotion?0:.48,ease:'power3.out'},0);
+    transition.to(cart.position,{...cartHome(index),duration:reducedMotion?0:.48,ease:'power3.out'},needsDepthSeparation()&&!reducedMotion?.18:0);
+    transition.to(cart.rotation,{...rotation,duration:reducedMotion?0:.48,ease:'power3.out'},needsDepthSeparation()&&!reducedMotion?.18:0);
   });
 }
 
@@ -708,5 +716,5 @@ init().catch((error)=>{
 });
 
 if(import.meta.hot){
-  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();stageObserver.disconnect();window.removeEventListener('resize',resizeScene);});
+  import.meta.hot.dispose(()=>{lcdScreen?.destroy();destroyLcdControls?.();destroyDeviceTilt();stageObserver.disconnect();window.removeEventListener('resize',resizeScene);});
 }
