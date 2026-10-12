@@ -4,13 +4,15 @@ const regions = {
   pad: [-1.16,-.49,-1.14,-.48],
   b: [.35,.70,-1.05,-.70],
   a: [.85,1.21,-.87,-.52],
+  select: [-.34,-.06,-1.66,-1.55],
+  start: [.06,.34,-1.66,-1.55],
 };
 
 // The supplied model combines its controls in one material. Split only whole
 // triangles, preserving their UVs/normals and leaving the other plastic intact.
 export function splitConsoleControls(geometry, material) {
   const position=geometry.getAttribute('position'), index=geometry.getIndex();
-  const buckets={pad:[],a:[],b:[],rest:[]};
+  const buckets=Object.fromEntries([...Object.keys(regions),'rest'].map(key=>[key,[]]));
   const classify=i=>Object.entries(regions).find(([,r])=>position.getX(i)>r[0]&&position.getX(i)<r[1]&&position.getY(i)>r[2]&&position.getY(i)<r[3]&&position.getZ(i)>.35)?.[0]??'rest';
   for(let i=0;i<index.count;i+=3){
     const triangle=[index.getX(i),index.getX(i+1),index.getX(i+2)];
@@ -19,7 +21,7 @@ export function splitConsoleControls(geometry, material) {
     buckets[key].push(...triangle);
   }
   const controls={};
-  for(const name of ['pad','a','b']){
+  for(const name of Object.keys(regions)){
     if(!buckets[name].length)throw new Error(`Missing console control: ${name}`);
     const part=geometry.clone();part.setIndex(buckets[name]);
     const box=new Box3();for(const i of buckets[name])box.expandByPoint(new Vector3().fromBufferAttribute(position,i));

@@ -42,7 +42,7 @@ const cartHits = [cartHit, educationHit, configHit, articleHit];
 const FLOATING_CARTRIDGE_SCALE = .8;
 const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-building article'];
 const cartridges = [];
-const cartridgeMotion = cartHits.map(() => ({ hovered: false, lift: 0, cursorX: 0, cursorY: 0, tiltX: 0, tiltY: 0 }));
+const cartridgeMotion = cartHits.map(() => ({ hovered: false, lift: 0, cursorX: 0, cursorY: 0, tiltX: 0, tiltY: 0, spin: 0 }));
 let activeCartridge = 0;
 let controlSelection = -1;
 const consoleControls = {};
@@ -73,7 +73,7 @@ let lcdScreen, destroyLcdControls;
 let width = $('#stage').clientWidth, height = $('#stage').clientHeight;
 const screenClipMatrix = new THREE.Matrix4();
 const screenLocalMatrix = new THREE.Matrix4();
-let screenBlack, cartridgePrompt, updateCartridgePrompt;
+let screenBlack, cartridgePrompt, updateCartridgePrompt, flashSpeaker;
 const raycaster = new THREE.Raycaster();
 const clock = new THREE.Clock();
 const pointerNdc = new THREE.Vector2();
@@ -85,6 +85,7 @@ const deviceGaze = new THREE.Vector2();
 const deviceTilt = setupDeviceTilt($('#tilt-status'), (x,y) => deviceTarget.set(x,y));
 const duration = (n) => reducedMotion ? Math.min(n, .06) : n;
 const setState = (next) => {
+  if(next!=='ready')cartridgeMotion.forEach(motion=>{gsap.killTweensOf(motion,'spin');motion.spin=0;});
   state = next;
   document.body.dataset.state = next;
   if (cartridgePrompt) cartridgePrompt.visible = ['waking', 'ready', 'dragging', 'returning'].includes(next);
@@ -138,13 +139,15 @@ function sound(type) {
   }
 }
 
-$('.sound-toggle').addEventListener('click', () => {
+function toggleSound() {
   soundEnabled = !soundEnabled;
   $('.sound-toggle').setAttribute('aria-pressed', String(soundEnabled));
   $('.sound-toggle').setAttribute('aria-label', `Turn sound ${soundEnabled ? 'off' : 'on'}`);
   $('.sound-toggle').title = `Turn sound ${soundEnabled ? 'off' : 'on'}`;
-  if (soundEnabled) sound('tick');
-});
+  if (soundEnabled) sound('press');
+  flashSpeaker?.();
+}
+$('.sound-toggle').addEventListener('click', toggleSound);
 $('#read-instead').addEventListener('click', () => $('#plain-about').showModal());
 $('#close-about').addEventListener('click', () => $('#plain-about').close());
 $('#plain-about').addEventListener('click', (e) => { if (e.target === e.currentTarget) { const r = e.currentTarget.getBoundingClientRect(); if(e.clientX<r.left || e.clientX>r.right || e.clientY<r.top || e.clientY>r.bottom) e.currentTarget.close(); } });
@@ -263,6 +266,7 @@ async function init() {
   const transformedB=new THREE.Vector3(.46122,-.35803,.72033).applyMatrix4(glassOriginal.matrixWorld);
   screenWidth=Math.abs(transformedB.x-transformedA.x)*normalize;screenHeight=Math.abs(transformedB.y-transformedA.y)*normalize;
   screenBlack=new THREE.Mesh(new THREE.PlaneGeometry(screenWidth,screenHeight),new THREE.MeshBasicMaterial({color:0x0b0e0b}));screenBlack.position.copy(screenPosition);rig.add(screenBlack);
+  setupSpeakerFlash();
   await document.fonts.load('400 36px "Geist Mono"');
   const promptCanvas=document.createElement('canvas');
   promptCanvas.width=640;promptCanvas.height=565;
@@ -384,7 +388,7 @@ function animate() {
     cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09-deviceGaze.y*.125,follow);
     cart.position.z=THREE.MathUtils.lerp(cart.position.z,home.z+motion.lift*.7,follow);
     cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX+deviceGaze.y*.031;
-    cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.05;
+    cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.05+motion.spin;
     cart.rotation.z=rotation.z+(moving?Math.sin(elapsed*speed*.7+phase)*.032:0);
   });
   if(cartridgePrompt?.visible){
@@ -402,11 +406,35 @@ function animate() {
 }
 
 
+
+function setupSpeakerFlash(){
+  const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+  const context=canvas.getContext('2d');
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,opacity:0,depthWrite:false,toneMapped:false});
+  const icon=new THREE.Mesh(new THREE.PlaneGeometry(.45,.45),material);
+  icon.position.copy(screenPosition);icon.position.z+=.006;rig.add(icon);
+  flashSpeaker=()=>{
+    context.clearRect(0,0,128,128);
+    context.fillStyle='#c9ccba';context.strokeStyle='#c9ccba';context.lineWidth=7;context.lineCap='round';context.lineJoin='round';
+    context.beginPath();context.moveTo(22,50);context.lineTo(43,50);context.lineTo(65,31);context.lineTo(65,97);context.lineTo(43,78);context.lineTo(22,78);context.closePath();context.fill();
+    context.beginPath();
+    if(soundEnabled){context.arc(65,64,23,-.8,.8);context.moveTo(93,36);context.arc(65,64,40,-.8,.8);}
+    else{context.moveTo(82,51);context.lineTo(108,77);context.moveTo(108,51);context.lineTo(82,77);}
+    context.stroke();texture.needsUpdate=true;
+    gsap.killTweensOf(material);material.opacity=1;
+    // Place it above the prompt; the reading screen is not interrupted.
+    icon.position.y=screenPosition.y+screenHeight*.3;
+    gsap.to(material,{opacity:0,delay:.42,duration:duration(.22)});
+  };
+}
+
 function setupConsoleControls() {
   for(const [name,control] of Object.entries(consoleControls)){
     const hit=document.createElement('button');
     hit.className='console-hit';hit.hidden=true;
-    hit.setAttribute('aria-label',name==='pad'?'D-pad: choose a cartridge with arrow keys':name==='a'?'A: insert selected cartridge':'B: eject cartridge');
+    if(name==='start'||name==='select')hit.classList.add('console-hit-small');
+    hit.setAttribute('aria-label',name==='pad'?'D-pad: choose a cartridge with arrow keys':{a:'A: insert selected cartridge',b:'B: eject cartridge',start:'Start: wake Game Boy and show cartridges',select:'Select: toggle sound'}[name]);
     $('#stage').appendChild(hit);control.hit=hit;
     const press=()=>{
       gsap.killTweensOf(control.mesh.position);
@@ -419,8 +447,12 @@ function setupConsoleControls() {
       e.stopPropagation();
       if(pointer||!['idle','ready','reading'].includes(state))return;
       if(e.detail===0){press();gsap.delayedCall(.07,release);}
-      sound('press');
-      if(name==='a'){
+      if(name!=='select'||soundEnabled)sound('press');
+      if(name==='start'){
+        if(state==='idle')powerOn();
+      }else if(name==='select'){
+        toggleSound();
+      }else if(name==='a'){
         if(state==='idle')powerOn();else if(state==='ready')loadCartridge();
       }else if(name==='b'){
         if(state==='reading')eject();
@@ -441,7 +473,12 @@ function chooseWithPad(direction){
   if(state==='idle'){powerOn();controlSelection=activeCartridge;return;}
   if(state!=='ready')return;
   const index=directionalCartridge(activeCartridge,direction,cartridges.map((_,i)=>cartHome(i)));
+  const changed=controlSelection!==index;
   selectCartridge(index);controlSelection=index;
+  if(changed&&!reducedMotion){
+    const motion=cartridgeMotion[index];
+    gsap.to(motion,{spin:(Math.floor(motion.spin/(Math.PI*2))+1)*Math.PI*2,duration:.48,ease:'power2.inOut',overwrite:'auto',onComplete:()=>motion.spin=0});
+  }
   instruction.textContent=`${cartridgeNames[index]} selected. Press A to insert.`;
 }
 function updateConsoleControls(){
@@ -451,6 +488,18 @@ function updateConsoleControls(){
     const world=rig.localToWorld(control.center.clone());const p=project(world);
     control.hit.hidden=!visible||p.x<0||p.x>width||p.y<0||p.y>height;
     if(!control.hit.hidden)positionHit(control.hit,control.mesh,name==='pad'?.65:.34,name==='pad'?.65:.34,world);
+  }
+  // Expand the narrow buttons outward, so their touch targets never overlap.
+  const start=consoleControls.start?.hit, select=consoleControls.select?.hit;
+  if(start&&!start.hidden&&select&&!select.hidden){
+    const sx=parseFloat(start.style.left),sy=parseFloat(start.style.top);
+    const lx=parseFloat(select.style.left),ly=parseFloat(select.style.top);
+    const dx=sx-lx,dy=sy-ly,distance=Math.hypot(dx,dy);
+    if(distance>0&&distance<52){
+      const offset=(52-distance)/2;
+      start.style.left=`${sx+dx/distance*offset}px`;start.style.top=`${sy+dy/distance*offset}px`;
+      select.style.left=`${lx-dx/distance*offset}px`;select.style.top=`${ly-dy/distance*offset}px`;
+    }
   }
 }
 

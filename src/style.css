@@ -133,3 +133,5 @@ body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .u
 .masthead{display:flex;align-items:center;gap:4px}
 
 .console-hit{position:absolute;z-index:4;transform:translate(-50%,-50%);border-radius:50%;min-width:44px;min-height:44px;background:transparent;touch-action:none}
+
+.console-hit-small{min-width:48px;min-height:48px;border-radius:14px}
