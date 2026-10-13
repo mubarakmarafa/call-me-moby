@@ -38,9 +38,15 @@ articleHit.className = 'object-hit';
 articleHit.setAttribute('aria-label', 'Insert the World-building article cartridge');
 articleHit.hidden = true;
 configHit.after(articleHit);
-const cartHits = [cartHit, educationHit, configHit, articleHit];
-const FLOATING_CARTRIDGE_SCALE = .8;
-const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-building article'];
+const soonHit = document.createElement('button');
+soonHit.id = 'soon-cartridge-hit';
+soonHit.className = 'object-hit';
+soonHit.setAttribute('aria-label', 'Insert the coming soon cartridge');
+soonHit.hidden = true;
+articleHit.after(soonHit);
+const cartHits = [cartHit, educationHit, configHit, articleHit, soonHit];
+const FLOATING_CARTRIDGE_SCALE = .68;
+const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-building article', 'Coming soon'];
 const cartridges = [];
 const cartridgeMotion = cartHits.map(() => ({ hovered: false, lift: 0, cursorX: 0, cursorY: 0, tiltX: 0, tiltY: 0, spin: 0 }));
 let activeCartridge = 0;
@@ -58,8 +64,9 @@ function selectCartridge(index) {
 }
 function showCartridgeContent() {
   closeVideo();
-  screenElement.querySelector('.lcd-article').innerHTML = activeCartridge === 3 ? worldBuildingArticle : activeCartridge === 1 ? educationArticle : aboutArticle;
-  screenElement.querySelector('.lcd-scroll').setAttribute('aria-label', activeCartridge === 3 ? 'agentic product design is world-building' : activeCartridge === 1 ? 'goodnotes education' : 'about moby');
+  screenElement.querySelector('.lcd-article').classList.toggle('soon-content', activeCartridge === 4);
+  screenElement.querySelector('.lcd-article').innerHTML = activeCartridge === 4 ? '<img data-lcd-effect src="/images/soon-logo.png" alt="Yellow logo" /><p>soon</p>' : activeCartridge === 3 ? worldBuildingArticle : activeCartridge === 1 ? educationArticle : aboutArticle;
+  screenElement.querySelector('.lcd-scroll').setAttribute('aria-label', activeCartridge === 4 ? 'coming soon' : activeCartridge === 3 ? 'agentic product design is world-building' : activeCartridge === 1 ? 'goodnotes education' : 'about moby');
   screenElement.querySelector('.lcd-scroll').scrollTop = 0;
   lcdScreen?.refresh();
 }
@@ -155,15 +162,15 @@ $('#plain-about').addEventListener('click', (e) => { if (e.target === e.currentT
 function cameraDistance() { return mobile() ? Math.max(15.8, 8.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
 function homePose() { return { x:0, y:mobile()?-.1:0, z:0, rx:.09, ry:-.30, rz:-.085 }; }
 function cartHome(index = activeCartridge) {
-  const side = index === 1 || index === 2 ? -1 : 1;
+  const side = index === 1 || index === 2 || index === 4 ? -1 : 1;
   const halfWidth = (cameraDistance() - .75) * Math.tan(THREE.MathUtils.degToRad(16)) * (width / height);
   const x = side * (mobile() ? 1.35 : Math.min(3.25, halfWidth - 1.15));
-  const offset = mobile() ? 0 : [0, .35, -.22, 0][index];
+  const offset = mobile() ? 0 : [0, .35, -.22, 0, -.12][index];
   return new THREE.Vector3(x + offset,
-    mobile() ? [2.65, -2.6, 2.85, -2.95][index] : [1.55, -1.65, 1.8, -1.1][index], .75);
+    mobile() ? [2.65, -2.6, 2.85, -2.95, .1][index] : [1.55, -2.05, 2.1, -1.1, 0][index], .75);
 }
 function cartRotation(index = activeCartridge) {
-  return [{ x: .08, y: -.20, z: -.16 }, { x: -.07, y: .20, z: .20 }, { x: .06, y: .16, z: .12 }, { x: -.04, y: -.18, z: -.12 }][index];
+  return [{ x: .08, y: -.20, z: -.16 }, { x: -.07, y: .20, z: .20 }, { x: .06, y: .16, z: .12 }, { x: -.04, y: -.18, z: -.12 }, { x: .04, y: .18, z: -.1 }][index];
 }
 function cartEdge(index) {
   const home = cartHome(index);
@@ -174,7 +181,7 @@ function cartEdge(index) {
 function readyPose() { return {x:0,y:0,z:needsDepthSeparation()?-2:1.25,rx:.07,ry:-.16,rz:-.035}; }
 const receivingDepth = -1.5;
 function receivingPose() {
-  const side=activeCartridge===1||activeCartridge===2?-1:1;
+  const side=activeCartridge===1||activeCartridge===2||activeCartridge===4?-1:1;
   return {x:0,y:-.06,z:needsDepthSeparation()?-2.6:receivingDepth,rx:.16,ry:Math.PI-side*.12,rz:side*.025};
 }
 
@@ -273,7 +280,7 @@ async function init() {
   const promptContext=promptCanvas.getContext('2d');
   const promptTexture=new THREE.CanvasTexture(promptCanvas);
   promptTexture.colorSpace=THREE.SRGBColorSpace;
-  const descriptions=[['a little','about me'],['designing','goodnotes classroom'],['my talk at','figma config'],['agentic design','as world-building']];
+  const descriptions=[['a little','about me'],['designing','goodnotes classroom'],['my talk at','figma config'],['agentic design','as world-building'],['coming soon']];
   let lastPrompt;
   updateCartridgePrompt=(index=-1)=>{
     if(index===lastPrompt)return;
@@ -327,8 +334,10 @@ async function init() {
   configThumbnail.src = '/images/config-badge.jpg';
   const articleHero = new Image();
   articleHero.src = '/images/world-building-pokemon.png';
-  await Promise.all([educationLogo.decode(), educationBackground.decode(), configThumbnail.decode(), articleHero.decode()]);
-  for (const appearance of [{ shellColor: '#e57c18' }, { artwork: educationLogo, background: educationBackground, shellColor: '#2073ca' }, { cover: configThumbnail, shellColor: '#a84f50' }, { thumbnail: articleHero, shellColor: null }]) {
+  const soonLogo = new Image();
+  soonLogo.src = '/images/soon-logo.png';
+  await Promise.all([soonLogo.decode(), educationLogo.decode(), educationBackground.decode(), configThumbnail.decode(), articleHero.decode()]);
+  for (const appearance of [{ shellColor: '#e57c18' }, { artwork: educationLogo, background: educationBackground, shellColor: '#2073ca' }, { cover: configThumbnail, shellColor: '#a84f50' }, { thumbnail: articleHero, shellColor: null }, { cover: soonLogo, shellColor: '#171717' }]) {
     const cart = createCartridge(cartridgeGltf, renderer, appearance);
     cart.position.copy(cartHome(cartridges.length));cart.scale.setScalar(FLOATING_CARTRIDGE_SCALE);
     const rotation=cartRotation(cartridges.length);cart.rotation.set(rotation.x,rotation.y,rotation.z);cart.visible=false;scene.add(cart);cartridges.push(cart);
@@ -374,9 +383,9 @@ function animate() {
     if(state!=='ready') { motion.hovered=false;motion.lift=0;motion.tiltX=0;motion.tiltY=0;return; }
     if(pointer)return;
     const home=cartHome(index), rotation=cartRotation(index);
-    const phase=[.65,3.1,5.2,1.8][index];
-    const speed=[1.04,1.37,.91,1.17][index];
-    const amplitude=[.10,.085,.095,.09][index];
+    const phase=[.65,3.1,5.2,1.8,4.2][index];
+    const speed=[1.04,1.37,.91,1.17,1.12][index];
+    const amplitude=[.10,.085,.095,.09,.08][index];
     const moving=!reducedMotion;
     motion.lift=THREE.MathUtils.lerp(motion.lift,moving&&((canHover.matches&&motion.hovered)||controlSelection===index)?1:0,follow);
     const tracking=moving&&canHover.matches&&motion.hovered;
@@ -508,7 +517,7 @@ function powerOn() {
   void deviceTilt.request();
   setState('waking');sound('tick');powerHit.disabled=true;
   ledMaterial.color.set(0xff1428);rig.getObjectByName('power-glow').material.opacity=.5;
-  instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk or World-building. Drag it onto the Game Boy, or press Enter to insert.';
+  instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk, World-building or Coming soon. Drag it onto the Game Boy, or press Enter to insert.';
   transition=gsap.timeline({onComplete:()=>{setState('ready');cartHits.forEach(hit=>hit.hidden=false);powerHit.hidden=true;cartHit.focus({preventScroll:true});}});
   transition.to(pose,{...readyPose(),duration:reducedMotion?0:needsDepthSeparation()?.7:.45,ease:'power3.inOut'},0);
   cartridges.forEach((cart,index)=>{
