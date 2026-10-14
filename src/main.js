@@ -6,6 +6,7 @@ import { splitConsoleControls, directionalCartridge } from './console-controls.j
 import { setupDeviceTilt } from './device-tilt.js';
 import { screenProjectionMatrix } from './screen-projection.js';
 import { gsap } from 'gsap';
+import { inject } from '@vercel/analytics';
 import '@fontsource/space-mono/latin-400.css';
 import '@fontsource/space-mono/latin-700.css';
 import './style.css';
@@ -15,6 +16,8 @@ import { createCartridge, CARTRIDGE_INSERT_SCALE } from './cartridge.js';
 import { LcdScreen } from './lcd/screen.js';
 import { educationArticle, mountEducationVideo } from './education.js';
 import { worldBuildingArticle } from './world-building.js';
+
+inject({ mode: import.meta.env.PROD ? 'production' : 'development', debug: false });
 
 const $ = (selector) => document.querySelector(selector);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
