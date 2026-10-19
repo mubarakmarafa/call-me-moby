@@ -1,0 +1,51 @@
+{
+  "earshot_commit": "925ebe5",
+  "sample_rate": 48000,
+  "sounds": {
+    "press-1": {
+      "recipe": "fit/click/floss_lid seed=7",
+      "duration": 0.079,
+      "peak_dbfs": -17
+    },
+    "press-2": {
+      "recipe": "fit/click/floss_lid seed=19",
+      "duration": 0.08,
+      "peak_dbfs": -17
+    },
+    "press-3": {
+      "recipe": "fit/click/floss_lid seed=31",
+      "duration": 0.079,
+      "peak_dbfs": -17
+    },
+    "tick": {
+      "recipe": "fit/tick/domino seed=7",
+      "duration": 0.087,
+      "peak_dbfs": -23
+    },
+    "power": {
+      "recipe": "fit/snap/switch_flip seed=7",
+      "duration": 0.12,
+      "peak_dbfs": -15
+    },
+    "pickup": {
+      "recipe": "fit/pop/lip_pop seed=7",
+      "duration": 0.186,
+      "peak_dbfs": -24
+    },
+    "snap": {
+      "recipe": "toggle/latch + bamboo_tok at 22ms",
+      "duration": 0.195,
+      "peak_dbfs": -13
+    },
+    "eject": {
+      "recipe": "toggle/off + short G4 pluck at 45ms",
+      "duration": 0.265,
+      "peak_dbfs": -17
+    },
+    "boot": {
+      "recipe": "kalimba_soft C5 G5 D6 E6 at 0/95/190/285ms + quiet E6 overtone",
+      "duration": 0.827,
+      "peak_dbfs": -18
+    }
+  }
+}

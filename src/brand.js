@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js';
 
 export async function loadBrandFont() {
   await Promise.all([
@@ -124,6 +125,58 @@ function stickerMaterial(texture, renderer, outline) {
   return material;
 }
 
+function holographicStickerMaterial(texture, backing, curl) {
+  const material = new THREE.MeshStandardMaterial({
+    map: texture, transparent: true, alphaTest: .2, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    roughness: .26, metalness: .25, envMapIntensity: .8, toneMapped: false,
+  });
+  material.onBeforeCompile = shader => {
+    shader.uniforms.foilBacking = { value: backing };
+    shader.uniforms.stickerCurl = curl;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
+      varying vec3 foilRight;
+      varying vec3 foilUp;
+      uniform float stickerCurl;
+      float curlDistance(vec2 point) { return max(0., (point.x + point.y - 1.18) * .224); }`);
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      float distance = curlDistance(uv);
+      float curvature = max(15. * stickerCurl, .0001);
+      float bend = distance * curvature;
+      vec2 foldDirection = vec2(.601, .799);
+      transformed.xy += foldDirection * (sin(bend) / curvature - distance);
+      transformed.z += (1. - cos(bend)) / curvature;
+      foilRight = normalize(mat3(modelViewMatrix) * vec3(cos(bend), 0., sin(bend) * foldDirection.x));
+      foilUp = normalize(mat3(modelViewMatrix) * vec3(0., cos(bend), sin(bend) * foldDirection.y));`);
+    shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+      float normalBend = curlDistance(uv) * 15. * stickerCurl;
+      objectNormal = normalize(objectNormal * cos(normalBend) - vec3(.601, .799, 0.) * sin(normalBend));`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec3 foilRight;
+      varying vec3 foilUp;
+      uniform sampler2D foilBacking;`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      vec4 ink = texture2D(map, vMapUv);
+      float backingAlpha = texture2D(foilBacking, vMapUv).a;
+      float foilMask = backingAlpha * (1. - ink.a);
+      diffuseColor *= vec4(mix(vec3(1.), ink.rgb, ink.a), max(ink.a, backingAlpha));
+      vec3 foilView = normalize(vViewPosition);
+      float angle = dot(foilView, normalize(foilRight)) * 3.8 + dot(foilView, normalize(foilUp)) * 2.6;
+      float spectrum = (vMapUv.x * 1.3 + vMapUv.y * .7 + angle) * 6.2831853;
+      vec3 rainbow = .5 + .5 * cos(spectrum + vec3(0., 2.094, 4.188));
+      vec3 pearl = mix(vec3(.94, .96, 1.), pow(rainbow, vec3(1.4)), .9);
+      float glint = pow(.5 + .5 * cos(spectrum * 1.7), 18.);
+      diffuseColor.rgb = mix(diffuseColor.rgb, pearl + glint * .12, foilMask);`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance += pearl * foilMask * .12;`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+      outgoingLight = mix(outgoingLight, pearl * .9 + glint * .18, foilMask);
+      #include <opaque_fragment>`);
+  };
+  material.customProgramCacheKey = () => 'reader-holographic-curl-v4';
+  return material;
+}
+
 function addSticker(surface, parent, renderer, {texture, name, x, y, width, height, angle=0, tiltX=0, tiltY=0, depth=.12, layer=2, outline=0}) {
   surface.updateMatrixWorld(true);
   const ray=new THREE.Raycaster(new THREE.Vector3(x,y,3),new THREE.Vector3(0,0,-1));
@@ -144,12 +197,26 @@ function addSticker(surface, parent, renderer, {texture, name, x, y, width, heig
   // Glass is transparent: distance-based sorting otherwise lets it paint over the decal.
   sticker.renderOrder=layer;
   parent.add(sticker);
+  sticker.userData.anchor = hit.point.clone();
+  return sticker;
 }
 
 export async function addStickers(bezel,shell,parent,renderer) {
   bezel.renderOrder=1;
   addSticker(bezel,parent,renderer,{texture:new THREE.CanvasTexture(createWordmark(true)),name:'Moby die-cut sticker',x:.04,y:.23,width:.9,height:.388,angle:-.025});
   const loader=new THREE.TextureLoader();
+  const [readerTexture, readerBacking] = await Promise.all([
+    loader.loadAsync('/images/stickers/reader.svg'),
+    loader.loadAsync('/images/stickers/reader-backing.svg'),
+  ]);
+  const readerSticker = addSticker(bezel,parent,renderer,{texture:readerTexture,name:'Reader sticker',x:1.055,y:2.055,width:.32,height:.314,angle:.14});
+  readerSticker.material.dispose();
+  const decal = readerSticker.geometry;
+  readerSticker.geometry = new TessellateModifier(.012, 7).modify(decal);
+  decal.dispose();
+  readerSticker.userData.curl = { value: 1 };
+  readerSticker.material = holographicStickerMaterial(readerTexture, readerBacking, readerSticker.userData.curl);
+  readerSticker.material.side = THREE.DoubleSide;
   const [flame,crystal]=await Promise.all([loader.loadAsync('/images/stickers/flame.png'),loader.loadAsync('/images/stickers/crystal.png')]);
   addSticker(shell,parent,renderer,{texture:crystal,name:'Crystal die-cut sticker',x:-1.25,y:-1.64,width:1.04,height:1.16,tiltY:-.75,depth:.9,angle:-.16,outline:.04});
   addSticker(shell,parent,renderer,{texture:flame,name:'Flame die-cut sticker',x:-.83,y:-1.95,width:.98,height:1.12,tiltX:.24,tiltY:-.25,depth:.6,angle:.14,outline:.04,layer:3});

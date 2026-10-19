@@ -1,0 +1,7 @@
+# Reader sticker artwork
+
+Generated with the built-in image generation tool. `reader-concept.png` preserves the transparent generated concept. This concept was superseded by the user-supplied QuiverAI glasses-and-book SVG in `../reader.svg`. The separate `../reader-backing.svg` defines its die-cut foil silhouette; only that backing receives the angle-dependent holographic material in `src/brand.js`.
+
+## Generation prompt
+
+Use case: logo-brand. Create one tiny readable die-cut sticker artwork for a reader-mode button on a playful physical Game Boy portfolio. Flat vector-style bold icon: a cute cream white document with one folded upper-right corner, two short dark charcoal text bars, and a single large friendly eye in the lower half. Eye has solid charcoal pupil, simple white highlight, no eyelashes. Rounded chunky shapes, strong silhouette, charming understated Japanese stationery feel. Solid charcoal ink and warm white only. Thick clean white die-cut outline/backing around the document. Front facing orthographic, perfectly upright, centered in square with small transparent margin. Actual transparent background. No words, no lettering, no extra objects, no shadows, no gradients, no mockup. This will be used as a texture with a live holographic shader applied to the white regions, so all white areas must be flat neutral white. Crisp vector-like edges, minimal detail legible at 32 pixels.

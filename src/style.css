@@ -82,7 +82,7 @@ body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .u
 .boot-logo{width:320px;line-height:0}
 .boot-logo canvas{display:block;width:100%;height:auto}
 .boot-progress{width:98px;height:7px;background:#263421}
-#plain-about{max-width:620px;width:calc(100% - 32px);background:#1e211c;color:#eeeade;border:1px solid #454936;border-radius:14px;padding:45px;max-height:85svh;overflow:auto}#plain-about::backdrop{background:#090a09dd;backdrop-filter:blur(12px)}#close-about{position:absolute;right:17px;top:12px;font-size:26px}#plain-about h2{font-size:46px;letter-spacing:-2px;font-weight:500;margin:22px 0}#plain-about p{font-size:17px;line-height:1.65;color:#babdaf}#plain-about .plain-lead{color:#e5c449;font-size:23px;line-height:1.3}#plain-about>a{display:inline-block;margin-top:18px;color:#e5c449;text-underline-offset:5px}
+
 .lcd.compact{width:420px;height:371px;border-width:8px;border-radius:15px}
 .compact .lcd-article{padding:24px 26px;font-size:18px;line-height:1.5;letter-spacing:-.4px}
 .compact .lcd-article h1{font-size:32px;margin-bottom:20px}
@@ -91,7 +91,6 @@ body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .u
 .compact .boot-logo{width:250px}
 @media(max-width:600px){
  header{padding:15px 17px}.reader-tools{top:15px;left:17px}footer{padding:16px 17px}.credits{font-size:8px}.loading{font-size:9px}
- #plain-about{padding:30px}#plain-about h2{font-size:39px}#plain-about p{font-size:15px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important}}
 

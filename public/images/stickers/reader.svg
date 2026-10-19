@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="510" viewBox="0 0 104 102">
+<!-- SVG created with Arrow, by QuiverAI (https://quiver.ai) -->
+  <g id="reading-icon" fill="#050504">
+    <g id="eyeglasses" fill="none" stroke="#050504" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.5">
+      <path id="left-temple" d="m20 33h4"/>
+      <path id="right-temple" d="m77 33h5"/>
+      <path id="nose-bridge" d="m46 31c2.4-3.2 5.6-3.2 8 0"/>
+      <circle id="left-lens" cx="35.5" cy="33.2" r="11.1"/>
+      <circle id="right-lens" cx="65.6" cy="33.2" r="11.1"/>
+    </g>
+    <g id="open-book">
+      <path id="book-silhouette" d="M26 57.6c0-4.7 3.1-7.4 7.2-6l17.4 5.5 17.8-5.5c4.4-1.4 7.4 1 7.4 5.4v17.6c0 2.8-1.1 4.8-3.8 5.6l-19.1 6.2c-1.5.5-2.9.5-4.4 0l-18.8-6.1c-2.5-.9-3.7-2.8-3.7-5.4Z"/>
+      <path id="page-highlight" d="m59.2 63.9 9.5-3" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="5"/>
+    </g>
+  </g>
+</svg>

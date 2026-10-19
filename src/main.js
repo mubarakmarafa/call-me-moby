@@ -1,3 +1,4 @@
+import { createAudio } from './audio.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -16,6 +17,7 @@ import { createCartridge, CARTRIDGE_INSERT_SCALE } from './cartridge.js';
 import { LcdScreen } from './lcd/screen.js';
 import { educationArticle, mountEducationVideo } from './education.js';
 import { worldBuildingArticle } from './world-building.js';
+import { createReader } from './reader.js';
 
 inject({ mode: import.meta.env.PROD ? 'production' : 'development', debug: false });
 
@@ -58,6 +60,48 @@ const consoleControls = {};
 const instruction = $('#instruction-text');
 const screenElement = $('#screen-content');
 const aboutArticle = screenElement.querySelector('.lcd-article').innerHTML;
+const readerSticker = document.createElement('button');
+readerSticker.id = 'reader-sticker';
+readerSticker.className = 'object-hit';
+readerSticker.hidden = true;
+readerSticker.setAttribute('aria-label', 'Toggle reader mode');
+readerSticker.title = 'Reader mode';
+$('#stage').append(readerSticker);
+function animateReaderCurl(flatten) {
+  const curl = rig?.getObjectByName('Reader sticker')?.userData.curl;
+  if (!curl) return;
+  gsap.to(curl, { value: reader.isOpen || flatten ? 0 : 1, duration: reducedMotion ? 0 : flatten ? .24 : .36, ease: 'power2.out', overwrite: true });
+}
+readerSticker.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') animateReaderCurl(true); });
+readerSticker.addEventListener('pointerleave', () => animateReaderCurl(false));
+readerSticker.addEventListener('focus', () => animateReaderCurl(true));
+readerSticker.addEventListener('blur', () => animateReaderCurl(false));
+
+const reader = createReader({ about: aboutArticle, education: educationArticle, worldBuilding: worldBuildingArticle, onSelect: swapReaderCartridge, onExit: exitReaderArticle, onToggle: (open, index) => {
+  animateReaderCurl(false);
+  readerEntrance?.kill();
+  readerEntering = open;
+  if (open) {
+    enterReader(index);
+    return;
+  }
+  gsap.to(readerFrameMotion, { value: 0, duration: reducedMotion ? 0 : .7, ease: 'power3.inOut', overwrite: true });
+  cartHits.forEach(hit => { hit.hidden = true; hit.style.zIndex = ''; });
+  cartridges.forEach((cart, i) => {
+    if (i === activeCartridge) return;
+    gsap.killTweensOf([cart.position, cart.rotation, cart.scale]);
+    cart.visible = false;
+  });
+  if (state === 'ready') {
+    cartridges.forEach((cart, i) => { cart.visible = true; cartHits[i].hidden = false; });
+  }
+  if (state === 'reading') $('.reader-tools').hidden = false;
+  requestAnimationFrame(() => {
+    animateReaderCurl(false);
+    resizeScene(true);
+    if (state === 'reading') screenElement.querySelector('.lcd-scroll').focus({preventScroll:true});
+  });
+} });
 const videoPlayer = mountEducationVideo(screenElement);
 const closeVideo = videoPlayer.close;
 function selectCartridge(index) {
@@ -67,6 +111,7 @@ function selectCartridge(index) {
 }
 function showCartridgeContent() {
   closeVideo();
+  reader.select(activeCartridge);
   screenElement.querySelector('.lcd-article').classList.toggle('soon-content', activeCartridge === 4);
   screenElement.querySelector('.lcd-article').innerHTML = activeCartridge === 4 ? '<img data-lcd-effect src="/images/soon-logo.png" alt="Yellow logo" /><p>soon</p>' : activeCartridge === 3 ? worldBuildingArticle : activeCartridge === 1 ? educationArticle : aboutArticle;
   screenElement.querySelector('.lcd-scroll').setAttribute('aria-label', activeCartridge === 4 ? 'coming soon' : activeCartridge === 3 ? 'agentic product design is world-building' : activeCartridge === 1 ? 'goodnotes education' : 'about moby');
@@ -75,9 +120,15 @@ function showCartridgeContent() {
 }
 const pose = { x: 0, y: 0, z: 0, rx: .09, ry: -.30, rz: -.085 };
 const cameraTarget = new THREE.Vector3();
+let readerFraming = 0;
+const readerFrameMotion = { value: 0 };
+let readerDrag = null;
+let readerEntering = false;
+let readerEntrance = null;
 let state = 'loading';
 let renderer, scene, camera, rig, cartridge, screenObject, screenPosition, screenWidth, screenHeight, ledMaterial;
-let hovered = false, hoverAmount = 0, soundEnabled = true, audioContext;
+let hovered = false, hoverAmount = 0, soundEnabled = true;
+const portfolioAudio = createAudio();
 let pointer = null, transition = null;
 let lcdScreen, destroyLcdControls;
 let width = $('#stage').clientWidth, height = $('#stage').clientHeight;
@@ -103,54 +154,13 @@ const setState = (next) => {
 const mobile = () => width < 600;
 const needsDepthSeparation = () => mobile() || matchMedia('(pointer: coarse)').matches;
 
-function sound(type) {
-  if (!soundEnabled) return;
-  audioContext ??= new (window.AudioContext || window.webkitAudioContext)();
-  audioContext.resume();
-  if (type === 'snap' || type === 'eject' || type === 'press') {
-    const ejecting = type === 'eject';
-    const now = audioContext.currentTime;
-    const noise = audioContext.createBuffer(1, Math.ceil(audioContext.sampleRate * .025), audioContext.sampleRate);
-    const samples = noise.getChannelData(0);
-    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
-    const click = audioContext.createBufferSource();
-    click.buffer = noise;
-    const filter = audioContext.createBiquadFilter();
-    filter.type = ejecting ? 'lowpass' : 'highpass';
-    filter.frequency.value = ejecting ? 950 : 1400;
-    const clickGain = audioContext.createGain();
-    clickGain.gain.setValueAtTime(type==='press'?.014:ejecting ? .018 : .045, now);
-    clickGain.gain.exponentialRampToValueAtTime(.0001, now + .025);
-    click.connect(filter);filter.connect(clickGain);clickGain.connect(audioContext.destination);
-    click.start(now);
-    const body = audioContext.createOscillator();
-    body.type = ejecting ? 'sine' : 'triangle';
-    body.frequency.setValueAtTime(ejecting ? 330 : 240, now);
-    body.frequency.exponentialRampToValueAtTime(ejecting ? 120 : 85, now + .055);
-    const bodyGain = audioContext.createGain();
-    bodyGain.gain.setValueAtTime(0, now);
-    bodyGain.gain.linearRampToValueAtTime(type==='press'?.012:ejecting ? .027 : .035, now + .002);
-    bodyGain.gain.exponentialRampToValueAtTime(.0001, now + (ejecting ? .085 : .065));
-    body.connect(bodyGain);bodyGain.connect(audioContext.destination);
-    body.start(now);body.stop(now + (ejecting ? .09 : .07));
-    return;
-  }
-  const notes = type === 'boot' ? [[523,0,.10],[784,.11,.10],[1047,.22,.22]] : [[392,0,.065]];
-  for (const [frequency, delay, length] of notes) {
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    oscillator.type = 'square';
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, audioContext.currentTime + delay);
-    gain.gain.linearRampToValueAtTime(.025, audioContext.currentTime + delay + .005);
-    gain.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + delay + length);
-    oscillator.connect(gain); gain.connect(audioContext.destination);
-    oscillator.start(audioContext.currentTime + delay); oscillator.stop(audioContext.currentTime + delay + length + .02);
-  }
+function sound(type, options) {
+  void portfolioAudio.play(type, options);
 }
 
 function toggleSound() {
   soundEnabled = !soundEnabled;
+  portfolioAudio.setEnabled(soundEnabled);
   $('.sound-toggle').setAttribute('aria-pressed', String(soundEnabled));
   $('.sound-toggle').setAttribute('aria-label', `Turn sound ${soundEnabled ? 'off' : 'on'}`);
   $('.sound-toggle').title = `Turn sound ${soundEnabled ? 'off' : 'on'}`;
@@ -158,11 +168,8 @@ function toggleSound() {
   flashSpeaker?.();
 }
 $('.sound-toggle').addEventListener('click', toggleSound);
-$('#read-instead').addEventListener('click', () => $('#plain-about').showModal());
-$('#close-about').addEventListener('click', () => $('#plain-about').close());
-$('#plain-about').addEventListener('click', (e) => { if (e.target === e.currentTarget) { const r = e.currentTarget.getBoundingClientRect(); if(e.clientX<r.left || e.clientX>r.right || e.clientY<r.top || e.clientY>r.bottom) e.currentTarget.close(); } });
 
-function cameraDistance() { return mobile() ? Math.max(15.8, 8.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
+function cameraDistance() { if (reader.isOpen) return width <= 700 ? 42 : Math.max(17, 8.6 / camera.aspect); return mobile() ? Math.max(15.8, 8.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
 function homePose() { return { x:0, y:mobile()?-.1:0, z:0, rx:.09, ry:-.30, rz:-.085 }; }
 function cartHome(index = activeCartridge) {
   const side = index === 1 || index === 2 || index === 4 ? -1 : 1;
@@ -352,6 +359,7 @@ async function init() {
   if(inspection==='back'||inspection==='seated-back')Object.assign(pose,{rx:-.15,ry:Math.PI+.25,rz:0});
   if(inspection==='seated-back'){rig.add(cartridge);cartridge.visible=true;cartridge.position.copy(cartridge.userData.seatedPosition);cartridge.rotation.set(0,Math.PI,0);cartridge.scale.setScalar(CARTRIDGE_INSERT_SCALE);}
   setState('idle');powerHit.disabled=false;
+  if (reader.isOpen) swapReaderCartridge(reader.current);
   gsap.to('.loading',{opacity:0,duration:.25,onComplete:()=>$('.loading').hidden=true});
   animate();
 }
@@ -367,14 +375,18 @@ function animate() {
   if(document.hidden)return;
   const delta = Math.min(clock.getDelta(), .05);
   const elapsed=clock.elapsedTime;
-  const resting=state==='idle'||state==='ready';
-  const attentive=resting&&!pointer&&!reducedMotion&&canHover.matches&&!$('#plain-about').open;
+  if (readerFraming !== readerFrameMotion.value) {
+    readerFraming = readerFrameMotion.value;
+    camera.setViewOffset(width, height, width > 700 ? width * .28 * readerFraming : 0, width <= 700 ? height * .36 * readerFraming : 0, width, height);
+  }
+  const resting=state==='idle'||state==='ready'||(reader.isOpen&&state==='reading');
+  const attentive=resting&&!pointer&&!reducedMotion&&canHover.matches;
   const follow=1-Math.exp(-9*delta);
   gaze.x=THREE.MathUtils.lerp(gaze.x,attentive?gazeTarget.x:0,follow);
   gaze.y=THREE.MathUtils.lerp(gaze.y,attentive?gazeTarget.y:0,follow);
   hoverAmount=THREE.MathUtils.lerp(hoverAmount,attentive&&hovered?.25:0,follow);
   const bob=resting&&!pointer&&!reducedMotion ? Math.sin(elapsed*1.25)*.055 : 0;
-  const deviceAttentive=resting&&!pointer&&!reducedMotion&&!$('#plain-about').open;
+  const deviceAttentive=resting&&!pointer&&!reducedMotion;
   deviceGaze.x=THREE.MathUtils.lerp(deviceGaze.x,deviceAttentive?deviceTarget.x:0,follow);
   deviceGaze.y=THREE.MathUtils.lerp(deviceGaze.y,deviceAttentive?deviceTarget.y:0,follow);
   rig.position.set(pose.x-deviceGaze.x*.044,pose.y+bob+deviceGaze.y*.031,pose.z+hoverAmount);
@@ -383,21 +395,34 @@ function animate() {
 
   cartridges.forEach((cart,index)=>{
     const motion=cartridgeMotion[index];
-    if(state!=='ready') { motion.hovered=false;motion.lift=0;motion.tiltX=0;motion.tiltY=0;return; }
-    if(pointer)return;
-    const home=cartHome(index), rotation=cartRotation(index);
+    if (readerEntering && index !== activeCartridge) return;
+    const readerFloating = reader.isOpen && state === 'reading' && index !== activeCartridge && cart.visible;
+    if(state!=='ready' && !readerFloating) { motion.hovered=false;motion.lift=0;motion.tiltX=0;motion.tiltY=0;return; }
+    if(pointer || readerDrag?.index === index)return;
+    const home=readerFloating?readerCartridgeHome(index):cartHome(index), rotation=readerFloating?readerCartridgeRotation(index):cartRotation(index);
+    if(readerFloating) {
+      cart.scale.setScalar(readerCartridgeScale());
+      const highlighted = (canHover.matches && motion.hovered) || document.activeElement === cartHits[index];
+      motion.lift = THREE.MathUtils.lerp(motion.lift, highlighted ? 1 : 0, reducedMotion ? 1 : follow);
+      const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z - home.z));
+      home.y += motion.lift * 8 / pixelsPerUnit;
+      cart.position.lerp(home, reducedMotion ? 1 : follow);
+      if(cart.position.distanceToSquared(home) < .0000001) cart.position.copy(home);
+      cart.rotation.set(rotation.x, rotation.y, rotation.z);
+      return;
+    }
     const phase=[.65,3.1,5.2,1.8,4.2][index];
     const speed=[1.04,1.37,.91,1.17,1.12][index];
     const amplitude=[.10,.085,.095,.09,.08][index];
     const moving=!reducedMotion;
-    motion.lift=THREE.MathUtils.lerp(motion.lift,moving&&((canHover.matches&&motion.hovered)||controlSelection===index)?1:0,follow);
+    motion.lift=THREE.MathUtils.lerp(motion.lift,moving&&((canHover.matches&&motion.hovered)||controlSelection===index||(readerFloating&&document.activeElement===cartHits[index]))?1:0,follow);
     const tracking=moving&&canHover.matches&&motion.hovered;
     motion.tiltX=THREE.MathUtils.lerp(motion.tiltX,tracking?motion.cursorY*.10:0,follow);
     motion.tiltY=THREE.MathUtils.lerp(motion.tiltY,tracking?motion.cursorX*.12:0,follow);
     const drift=moving?Math.sin(elapsed*speed+phase)*amplitude:0;
     const sway=moving?Math.sin(elapsed*speed*.58+phase)*.028:0;
     cart.position.x=THREE.MathUtils.lerp(cart.position.x,home.x+sway+deviceGaze.x*.16,follow);
-    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*.09-deviceGaze.y*.125,follow);
+    cart.position.y=THREE.MathUtils.lerp(cart.position.y,home.y+drift+motion.lift*(readerFloating?.32:.09)-deviceGaze.y*.125,follow);
     cart.position.z=THREE.MathUtils.lerp(cart.position.z,home.z+motion.lift*.7,follow);
     cart.rotation.x=rotation.x-motion.lift*.05+motion.tiltX+deviceGaze.y*.031;
     cart.rotation.y=rotation.y+motion.tiltY+deviceGaze.x*.05+motion.spin;
@@ -410,8 +435,17 @@ function animate() {
   }
   if(state==='dragging'&&pointer?.dragged)updateMagneticDrag(delta);
   if(state==='idle'||state==='ready')positionHit(powerHit,rig,2.85,4.8);
+  if(reader.isOpen && state==='reading' && !readerEntering){
+    cartridges.forEach((cart,index)=>{ cartHits[index].hidden = index === activeCartridge; cartHits[index].style.zIndex = String(cartridgeMotion[index].hovered || document.activeElement === cartHits[index] ? 20 : 13 + index); if(index !== activeCartridge) positionHit(cartHits[index],cart,1.85*readerCartridgeScale(),2.1*readerCartridgeScale()); });
+  }
   if(state==='ready'){
     cartridges.forEach((cart,index)=>positionHit(cartHits[index],cart,1.85*FLOATING_CARTRIDGE_SCALE,2.1*FLOATING_CARTRIDGE_SCALE));
+  }
+  const sticker = rig.getObjectByName('Reader sticker');
+  if (sticker) {
+    const facing = new THREE.Vector3(0, 0, 1).transformDirection(rig.matrixWorld).dot(camera.position.clone().sub(rig.position).normalize());
+    readerSticker.hidden = facing < .4 || !['idle', 'ready', 'reading'].includes(state);
+    positionHit(readerSticker, rig, .26, .26, rig.localToWorld(sticker.userData.anchor.clone()));
   }
   updateConsoleControls();
   renderer.render(scene,camera);updateScreenProjection();
@@ -459,7 +493,7 @@ function setupConsoleControls() {
       e.stopPropagation();
       if(pointer||!['idle','ready','reading'].includes(state))return;
       if(e.detail===0){press();gsap.delayedCall(.07,release);}
-      if(name!=='select'||soundEnabled)sound('press');
+      if(name!=='select')sound('press', { pitch: name==='b' ? -2 : name==='pad' ? 2 : 0 });
       if(name==='start'){
         if(state==='idle')powerOn();
       }else if(name==='select'){
@@ -487,6 +521,7 @@ function chooseWithPad(direction){
   const index=directionalCartridge(activeCartridge,direction,cartridges.map((_,i)=>cartHome(i)));
   const changed=controlSelection!==index;
   selectCartridge(index);controlSelection=index;
+  if(changed)sound('tick', { pitch: index * 1.5 });
   if(changed&&!reducedMotion){
     const motion=cartridgeMotion[index];
     gsap.to(motion,{spin:(Math.floor(motion.spin/(Math.PI*2))+1)*Math.PI*2,duration:.48,ease:'power2.inOut',overwrite:'auto',onComplete:()=>motion.spin=0});
@@ -518,7 +553,7 @@ function updateConsoleControls(){
 function powerOn() {
   if(state!=='idle')return;
   void deviceTilt.request();
-  setState('waking');sound('tick');powerHit.disabled=true;
+  setState('waking');sound('power');powerHit.disabled=true;
   ledMaterial.color.set(0xff1428);rig.getObjectByName('power-glow').material.opacity=.5;
   instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk, World-building or Coming soon. Drag it onto the Game Boy, or press Enter to insert.';
   transition=gsap.timeline({onComplete:()=>{setState('ready');cartHits.forEach(hit=>hit.hidden=false);powerHit.hidden=true;cartHit.focus({preventScroll:true});}});
@@ -574,7 +609,7 @@ function isBackdrop(e) {
 let backdropPress=null;
 $('#stage').addEventListener('pointerdown',e=>{
   backdropPress=null;
-  if(e.button===0&&(state==='ready'||state==='reading')&&!pointer&&!$('#plain-about').open&&isBackdrop(e)){
+  if(e.button===0&&(state==='ready'||state==='reading')&&!pointer&&!reader.isOpen&&isBackdrop(e)){
     backdropPress={x:e.clientX,y:e.clientY,state};
   }
 });
@@ -584,7 +619,7 @@ $('#stage').addEventListener('pointermove',e=>{
 $('#stage').addEventListener('pointercancel',()=>backdropPress=null);
 $('#stage').addEventListener('click',e=>{
   const press=backdropPress;backdropPress=null;
-  if(!press||press.state!==state||pointer||$('#plain-about').open||!isBackdrop(e))return;
+  if(!press||press.state!==state||pointer||reader.isOpen||!isBackdrop(e))return;
   if(state==='reading')eject();else if(state==='ready')dismissCartridge();
 });
 
@@ -624,18 +659,28 @@ function updateMagneticDrag(delta) {
 
 cartHits.forEach((hit,index)=>{
 const trackCursor=e=>{
-  if(e.pointerType!=='mouse'||!canHover.matches||reducedMotion||state!=='ready'||pointer)return;
+  if(e.pointerType!=='mouse'||!canHover.matches||reducedMotion||!(state==='ready'||reader.isOpen&&state==='reading')||pointer)return;
   const bounds=hit.getBoundingClientRect();
   const motion=cartridgeMotion[index];
   motion.cursorX=THREE.MathUtils.clamp((e.clientX-bounds.left)/bounds.width*2-1,-1,1);
   motion.cursorY=THREE.MathUtils.clamp((e.clientY-bounds.top)/bounds.height*2-1,-1,1);
 };
+hit.title = cartridgeNames[index];
+hit.addEventListener('click',e=>{if(e.detail===0&&reader.isOpen&&state==='reading')swapReaderCartridge(index);});
 hit.addEventListener('pointerenter',e=>{cartridgeMotion[index].hovered=e.pointerType==='mouse'&&canHover.matches;trackCursor(e);});
 hit.addEventListener('pointerleave',()=>{cartridgeMotion[index].hovered=false;});
 hit.addEventListener('pointerdown',(e)=>{
-  if(state!=='ready'||e.button!==0)return;
+  if(reader.isOpen && state==='reading' && e.button===0) {
+    const cart = cartridges[index];
+    readerDrag = { index, id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, offset: cart.position.clone().sub(pointerWorld(e, .75)) };
+    hit.setPointerCapture(e.pointerId);
+    hit.style.cursor = 'grabbing';
+    return;
+  }
+  if(state!=='ready' ||e.button!==0)return;
   controlSelection=-1;
   selectCartridge(index);
+  sound('pickup', { pitch: index * 1.5 });
   const depth=cartridge.position.z;
   pointer={id:e.pointerId,x:e.clientX,y:e.clientY,depth,offset:cartridge.position.clone().sub(pointerWorld(e,depth)),raw:cartridge.position.clone(),magnetized:false,dragged:false};
   cartHit.setPointerCapture(e.pointerId);
@@ -644,6 +689,11 @@ hit.addEventListener('pointerdown',(e)=>{
 });
 hit.addEventListener('pointermove',(e)=>{
   trackCursor(e);
+  if(readerDrag?.index===index && readerDrag.id===e.pointerId) {
+    if(Math.hypot(e.clientX-readerDrag.x,e.clientY-readerDrag.y)>6) readerDrag.moved=true;
+    if(readerDrag.moved) cartridges[index].position.copy(pointerWorld(e,.75).add(readerDrag.offset));
+    return;
+  }
   if(!pointer||e.pointerId!==pointer.id)return;
   if(!pointer.dragged&&Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>6){
     pointer.dragged=true;setState('dragging');cartHit.style.cursor='grabbing';
@@ -655,13 +705,21 @@ hit.addEventListener('pointermove',(e)=>{
   if(pointer.dragged){pointer.raw.copy(pointerWorld(e,pointer.depth).add(pointer.offset));cartHit.style.left=`${e.clientX}px`;cartHit.style.top=`${e.clientY}px`;}
 });
 hit.addEventListener('pointerup',(e)=>{
+  if(readerDrag?.index===index && readerDrag.id===e.pointerId) {
+    const load = !readerDrag.moved || nearConsole(cartridges[index].position);
+    readerDrag = null;
+    hit.releasePointerCapture(e.pointerId); hit.style.cursor = 'grab';
+    if(load) swapReaderCartridge(index);
+    return;
+  }
   if(!pointer||e.pointerId!==pointer.id)return;
   const wasDrag=pointer.dragged;
   if(wasDrag){pointer.raw.copy(pointerWorld(e,pointer.depth).add(pointer.offset));updateMagneticDrag(0);}
   const canLoad=!wasDrag||pointer.magnetized||nearConsole(pointer.raw);pointer=null;cartHit.releasePointerCapture(e.pointerId);cartHit.style.cursor='grab';
   if(canLoad)loadCartridge(wasDrag);else returnCartridge();
 });
-hit.addEventListener('pointercancel',()=>{if(pointer){pointer=null;returnCartridge();}});
+hit.addEventListener('lostpointercapture',()=>{if(readerDrag?.index===index){readerDrag=null;hit.style.cursor='grab';}});
+hit.addEventListener('pointercancel',()=>{if(readerDrag?.index===index){readerDrag=null;hit.style.cursor='grab';}if(pointer){pointer=null;returnCartridge();}});
 hit.addEventListener('click',(e)=>{if(e.detail===0&&state==='ready'){selectCartridge(index);loadCartridge(false);}});
 });
 
@@ -694,6 +752,7 @@ function updateScreenProjection() {
 }
 
 function readingView() {
+  if (reader.isOpen) return { distance: cameraDistance(), target: new THREE.Vector3() };
   const usableWidth=Math.min(width*(mobile()?.91:.60),660);
   const usableHeight=Math.min(height*(mobile()?.55:.66),600);
   const pixelsPerUnit=Math.min(usableWidth/screenWidth,usableHeight/screenHeight);
@@ -701,8 +760,200 @@ function readingView() {
   return {distance:distance+screenPosition.z,target:screenPosition.clone().add(new THREE.Vector3(0,-.12,0))};
 }
 
+function readerShelfLayout() {
+  const rect = $('#reader-pane').getBoundingClientRect();
+  const cardWidth = Math.min(108, (rect.width - 74) / 3.9);
+  return { rect, cardWidth, spacing: cardWidth * .70 };
+}
+function readerCartridgeScale() {
+  const { cardWidth } = readerShelfLayout();
+  const pixelsPerUnit = height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z - .75));
+  return cardWidth / (1.85 * pixelsPerUnit);
+}
+function readerCartridgeHome(index) {
+  const { rect, spacing, cardWidth } = readerShelfLayout();
+  const slot = index > activeCartridge ? index - 1 : index;
+  const x = rect.left + rect.width / 2 + (slot - 1.5) * spacing;
+  const y = rect.top + cardWidth * .10;
+  const point = new THREE.Vector3(x/width*2-1,1-y/height*2,.5).unproject(camera);
+  const direction = point.sub(camera.position).normalize();
+  return camera.position.clone().addScaledVector(direction, (.75 + slot * .025-camera.position.z)/direction.z);
+}
+function readerCartridgeRotation(index) {
+  return { x: 0, y: -.52, z: 0 };
+}
+
+function enterReader(index) {
+  cartHits.forEach(hit => hit.hidden = true);
+  readerEntrance = gsap.timeline();
+  cartridges.forEach((cart, i) => {
+    if (i === index || !cart.visible) return;
+    scene.attach(cart);
+    gsap.killTweensOf([cart.position, cart.rotation, cart.scale]);
+    const exitY = camera.position.y + Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z - cart.position.z) + 4;
+    readerEntrance.to(cart.position, { y: exitY, duration: reducedMotion ? 0 : .24, ease: 'power2.in', onComplete: () => { cart.visible = false; } }, 0);
+  });
+  readerEntrance.call(() => {
+    gsap.to(readerFrameMotion, { value: 1, duration: reducedMotion ? 0 : .7, ease: 'power3.inOut', overwrite: true });
+    resizeScene(true);
+    swapReaderCartridge(index);
+  }, null, reducedMotion ? 0 : .24);
+  readerEntrance.call(settleReaderShelf, null, reducedMotion ? 0 : .98);
+}
+
+function settleReaderShelf() {
+  if (!reader.isOpen || !readerEntering) return;
+  if (state !== 'reading') {
+    readerEntrance = gsap.delayedCall(.05, settleReaderShelf);
+    return;
+  }
+  camera.updateMatrixWorld(true);
+  readerEntrance = gsap.timeline({ onComplete: () => { readerEntering = false; } });
+  let slot = 0;
+  cartridges.forEach((cart, i) => {
+    if (i === activeCartridge) return;
+    scene.attach(cart);
+    const home = readerCartridgeHome(i);
+    const rotation = readerCartridgeRotation(i);
+    const scale = readerCartridgeScale();
+    cart.position.copy(home);
+    cart.position.y += scale * 3.8;
+    cart.rotation.set(rotation.x, rotation.y, rotation.z);
+    cart.scale.setScalar(scale);
+    cart.visible = false;
+    const at = reducedMotion ? 0 : slot++ * .045;
+    readerEntrance.set(cart, { visible: true }, at);
+    readerEntrance.to(cart.position, { ...home, duration: reducedMotion ? 0 : .4, ease: 'power3.out' }, at);
+  });
+}
+
+function swapReaderCartridge(index) {
+  if (!cartridges.length || state === 'loading' || state === 'error') return;
+  if (['reading', 'swapping'].includes(state) && activeCartridge === index) {
+    if (state === 'reading' && reader.isOpen && !readerEntering) cartridges.forEach((cart, i) => {
+      if (i === index || cart.visible) return;
+      scene.attach(cart); cart.position.copy(readerCartridgeHome(i));
+      cart.scale.setScalar(readerCartridgeScale()); cart.visible = true;
+    });
+    return;
+  }
+  const previous = cartridges.find(cart => cart.parent === rig && cart.visible);
+  transition?.kill();
+  gsap.killTweensOf([pose, camera.position, cameraTarget]);
+  cartridges.forEach(cart => gsap.killTweensOf([cart.position, cart.rotation, cart.scale]));
+  closeVideo();
+  pointer = null;
+  setState('swapping');
+  cartHits.forEach(hit => hit.hidden = true);
+  powerHit.hidden = true;
+  $('.reader-tools').hidden = true;
+  screenElement.inert = true;
+  screenElement.style.opacity = '0';
+  lcdScreen?.setActive(false);
+  selectCartridge(index);
+  showCartridgeContent();
+  const incoming = cartridge;
+  const seat = incoming.userData.seatedPosition;
+  rig.updateMatrixWorld(true);
+  cartridges.forEach((cart, i) => {
+    if (cart.parent !== scene) scene.attach(cart);
+    if (!cart.visible) {
+      cart.position.copy(readerCartridgeHome(i));
+      const rotation = readerCartridgeRotation(i);
+      cart.rotation.set(rotation.x, rotation.y, rotation.z);
+      cart.scale.setScalar(readerCartridgeScale());
+    }
+    cart.visible = !readerEntering || cart === incoming;
+  });
+  const finish = () => {
+    rig.add(incoming);
+    incoming.position.copy(seat);
+    incoming.rotation.set(0, Math.PI, 0);
+    incoming.scale.setScalar(CARTRIDGE_INSERT_SCALE);
+    Object.assign(pose, { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
+    ledMaterial.color.set(0xff1428);
+    rig.getObjectByName('power-glow').material.opacity = .5;
+    setState('reading');
+    screenElement.style.opacity = '1';
+    screenElement.classList.add('is-reading');
+    screenElement.inert = false;
+    gsap.set('.boot', { opacity: 0 });
+    lcdScreen?.setActive(activeCartridge !== 2);
+    if (activeCartridge === 2) {
+      // The small screen gets the same talk, without moving keyboard focus off the paper.
+      const focused = document.activeElement;
+      videoPlayer.open('fLF8dwbC74o', 'Human methods, new material — Config', { standalone: true });
+      focused?.focus({ preventScroll: true });
+    }
+    $('.reader-tools').hidden = reader.isOpen;
+    instruction.textContent = `${cartridgeNames[index]} loaded.`;
+    resizeScene();
+  };
+  pose.ry = THREE.MathUtils.euclideanModulo(pose.ry + Math.PI, Math.PI * 2) - Math.PI;
+  transition = gsap.timeline({ onComplete: finish });
+  transition.to(pose, { x: 0, y: 0, z: 0, rx: .08, ry: -.22, rz: -.025, duration: duration(.18), ease: 'power2.out' }, 0);
+  transition.to(camera.position, { x: 0, y: 0, z: cameraDistance(), duration: duration(.25), ease: 'power2.out' }, 0);
+  transition.to(cameraTarget, { x: 0, y: 0, z: 0, duration: duration(.25) }, 0);
+  cartridges.forEach((cart, i) => {
+    if (cart === incoming || readerEntering) return;
+    const home = readerCartridgeHome(i);
+    if (cart !== previous && cart.position.distanceTo(home) < .001) return;
+    const rotation = readerCartridgeRotation(i);
+    if (cart !== previous) {
+      transition.to(cart.position, { ...home, duration: duration(.25), ease: 'power2.out' }, 0);
+      transition.to(cart.rotation, { ...rotation, duration: duration(.25), ease: 'power2.out' }, 0);
+      const scale = readerCartridgeScale();
+      transition.to(cart.scale, { x: scale, y: scale, z: scale, duration: duration(.25) }, 0);
+      return;
+    }
+    const motion = { progress: 0 };
+    let path;
+    const departure = cart === previous ? duration(.24) : 0;
+    if (cart === previous) {
+      sound('eject');
+      transition.to(cart.position, { y: cart.position.y + 2.6, duration: departure, ease: 'power2.out' }, 0);
+    }
+    transition.call(() => {
+      const start = cart.position.clone();
+      const side = i % 2 ? -1 : 1;
+      path = new THREE.CubicBezierCurve3(start,
+        new THREE.Vector3(side * 1.8, start.y + .3, 1.1),
+        new THREE.Vector3(side * 1.8, home.y + .8, 1.1), home);
+    }, null, departure);
+    transition.to(motion, { progress: 1, duration: duration(.55), ease: 'power2.inOut',
+      onUpdate: () => cart.position.copy(path.getPoint(motion.progress)) }, departure);
+    transition.to(cart.rotation, { ...rotation, duration: duration(.55), ease: 'power2.inOut' }, departure);
+    transition.to(cart.scale, { x: readerCartridgeScale(), y: readerCartridgeScale(), z: readerCartridgeScale(), duration: duration(.55) }, departure);
+  });
+  const arrival = { progress: 0 };
+  let arrivalPath, arrivalStart, arrivalEnd;
+  const approachAt = duration(previous ? .35 : .12);
+  transition.call(() => {
+    rig.updateMatrixWorld(true);
+    const aboveSlot = rig.localToWorld(seat.clone().add(new THREE.Vector3(0, 2.6, 0)));
+    const start = incoming.position.clone();
+    const side = start.x < 0 ? -1 : 1;
+    arrivalPath = new THREE.CubicBezierCurve3(start,
+      new THREE.Vector3(side * 1.8, start.y + 1.3, 1.3),
+      new THREE.Vector3(side * 1.8, aboveSlot.y + .5, 1.0), aboveSlot);
+    arrivalStart = incoming.quaternion.clone();
+    arrivalEnd = rig.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
+  }, null, approachAt);
+  transition.to(arrival, { progress: 1, duration: duration(.55), ease: 'power2.inOut', onUpdate: () => {
+    incoming.position.copy(arrivalPath.getPoint(arrival.progress));
+    incoming.quaternion.slerpQuaternions(arrivalStart, arrivalEnd, arrival.progress);
+  } }, approachAt);
+  transition.to(incoming.scale, { x: CARTRIDGE_INSERT_SCALE, y: CARTRIDGE_INSERT_SCALE, z: CARTRIDGE_INSERT_SCALE, duration: duration(.55) }, approachAt);
+  transition.call(() => rig.attach(incoming));
+  transition.to(incoming.position, { x: seat.x, y: seat.y, z: seat.z, duration: duration(.24), ease: 'power2.in' });
+  transition.call(() => sound('snap'));
+  transition.to(pose, { y: -.055, duration: duration(.045) });
+  transition.to(pose, { y: 0, rx: 0, ry: 0, rz: 0, duration: duration(.14), ease: 'power2.out' });
+}
+
 function loadCartridge(fromDrag=false) {
   if(state!=='ready'&&state!=='dragging')return;
+  if (reader.isOpen) { swapReaderCartridge(activeCartridge); return; }
   setState('inserting');pointer=null;cartHits.forEach(hit=>hit.hidden=true);
   showCartridgeContent();
   cartridges.forEach((cart,index)=>{if(index!==activeCartridge)gsap.to(cart.position,{...cartEdge(index),duration:reducedMotion?0:.22,ease:'power2.in',onComplete:()=>cart.visible=false});});
@@ -762,7 +1013,7 @@ function loadCartridge(fromDrag=false) {
 }
 
 window.addEventListener('keydown',(e)=>{
-  if($('#plain-about').open||(import.meta.env.DEV&&e.target.closest?.('.dialkit-root')))return;
+  if(e.defaultPrevented || e.target.closest?.('#reader-pane') || (import.meta.env.DEV&&e.target.closest?.('.dialkit-root')))return;
   if(e.key==='Escape'&&state==='ready'){
     e.preventDefault();dismissCartridge(true);return;
   }
@@ -770,8 +1021,29 @@ window.addEventListener('keydown',(e)=>{
     if(e.key==='Escape')eject();
   }
 });
+function exitReaderArticle() {
+  if (!cartridges.length || state === 'loading' || state === 'error') return;
+  readerDrag = null;
+  if (state === 'swapping') {
+    transition?.kill();
+    gsap.killTweensOf([pose, camera.position, cameraTarget]);
+    cartridges.forEach(cart => {
+      gsap.killTweensOf([cart.position, cart.rotation, cart.scale]);
+      if(cart !== cartridge && cart.parent === rig) scene.attach(cart);
+    });
+    rig.add(cartridge);
+    cartridge.position.copy(cartridge.userData.seatedPosition);
+    cartridge.rotation.set(0, Math.PI, 0);
+    cartridge.scale.setScalar(CARTRIDGE_INSERT_SCALE);
+    cartridge.visible = true;
+    setState('reading');
+  }
+  if (state === 'reading') eject();
+}
+
 function eject() {
   if(state!=='reading')return;
+  if (reader.isOpen) reader.close();
   closeVideo();
   transition?.kill();
   gsap.killTweensOf([camera.position,cameraTarget,pose,cartridge.position,cartridge.rotation,cartridge.scale]);
@@ -820,12 +1092,22 @@ function eject() {
   });
 }
 $('#eject').addEventListener('click',eject);
-function resizeScene(){
+function resizeScene(animateCamera = false){
   width=$('#stage').clientWidth;height=$('#stage').clientHeight;
   if(!renderer)return;
-  renderer.setSize(width,height);if(screenObject)updateScreenSize();camera.aspect=width/height;camera.updateProjectionMatrix();
+  renderer.setSize(width,height);if(screenObject)updateScreenSize();camera.aspect=width/height;
+  if(reader.isOpen || readerFraming > .0001) camera.setViewOffset(width,height,width > 700 ? width*.28*readerFraming : 0,width <= 700 ? height*.36*readerFraming : 0,width,height);
+  else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
   if(state==='reading'){
-    const view=readingView();camera.position.set(view.target.x,view.target.y,view.distance);cameraTarget.copy(view.target);
+    const view=readingView();
+    if(animateCamera === true && !reducedMotion) {
+      gsap.to(camera.position,{x:view.target.x,y:view.target.y,z:view.distance,duration:.7,ease:'power3.inOut',overwrite:'auto'});
+      gsap.to(cameraTarget,{x:view.target.x,y:view.target.y,z:view.target.z,duration:.7,ease:'power3.inOut',overwrite:'auto'});
+    } else {
+      gsap.killTweensOf([camera.position,cameraTarget]);
+      camera.position.set(view.target.x,view.target.y,view.distance);cameraTarget.copy(view.target);
+    }
   }else if(state==='idle'||state==='ready'){
     camera.position.set(0,0,cameraDistance());Object.assign(pose,state==='idle'?homePose():readyPose());if(state==='ready')cartridges.forEach((cart,index)=>cart.position.copy(cartHome(index)));
   }
