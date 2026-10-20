@@ -360,18 +360,16 @@ async function init() {
   const glowTexture=new THREE.CanvasTexture(glowCanvas);glowTexture.colorSpace=THREE.SRGBColorSpace;
   const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,transparent:true,opacity:0,depthWrite:false,toneMapped:false}));
   glow.position.copy(led.position);glow.position.z+=.01;glow.scale.setScalar(.14);glow.name='power-glow';glow.renderOrder=3;rig.add(glow);
-  const educationLogo = new Image();
-  educationLogo.src = '/images/goodnotes/classroom-logo.png';
-  const educationBackground = new Image();
-  educationBackground.src = '/images/goodnotes/cartridge-background.png';
-  const configThumbnail = new Image();
-  configThumbnail.src = '/images/config-badge.jpg';
+  const educationCover = new Image();
+  educationCover.src = '/images/cartridges/education.png';
+  const configCover = new Image();
+  configCover.src = '/images/cartridges/config.png';
   const articleHero = new Image();
   articleHero.src = '/images/world-building-pokemon.png';
   const soonLogo = new Image();
   soonLogo.src = '/images/soon-logo.png';
-  await Promise.all([soonLogo.decode(), educationLogo.decode(), educationBackground.decode(), configThumbnail.decode(), articleHero.decode()]);
-  for (const appearance of [{ shellColor: '#e57c18' }, { artwork: educationLogo, background: educationBackground, shellColor: '#2073ca' }, { cover: configThumbnail, shellColor: '#a84f50' }, { thumbnail: articleHero, shellColor: null }, { cover: soonLogo, shellColor: '#171717' }]) {
+  await Promise.all([soonLogo.decode(), educationCover.decode(), configCover.decode(), articleHero.decode()]);
+  for (const appearance of [{ shellColor: '#e57c18' }, { cover: educationCover, shellColor: '#2073ca' }, { cover: configCover, shellColor: '#a84f50' }, { thumbnail: articleHero, shellColor: null }, { cover: soonLogo, shellColor: '#171717' }]) {
     const cart = createCartridge(cartridgeGltf, renderer, appearance);
     cart.position.copy(cartHome(cartridges.length));cart.scale.setScalar(FLOATING_CARTRIDGE_SCALE);
     const rotation=cartRotation(cartridges.length);cart.rotation.set(rotation.x,rotation.y,rotation.z);cart.visible=false;scene.add(cart);cartridges.push(cart);

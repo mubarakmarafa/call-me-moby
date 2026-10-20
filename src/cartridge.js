@@ -42,12 +42,27 @@ function replaceLabel(source, anisotropy, artwork, shellColor, background, thumb
   const ctx = label.getContext('2d');
   paintPaper(ctx, label.width, label.height);
   if (cover) {
-    const scale = Math.max(label.width / cover.naturalWidth, label.height / cover.naturalHeight);
-    const w = cover.naturalWidth * scale, h = cover.naturalHeight * scale;
-    ctx.drawImage(cover, (label.width-w)/2, (label.height-h)/2, w, h);
+    // Label artwork is composed for this surface; keep all title edges visible.
+    ctx.drawImage(cover, 0, 0, label.width, label.height);
   } else if (thumbnail) {
-    const height = label.width * thumbnail.naturalHeight / thumbnail.naturalWidth;
-    ctx.drawImage(thumbnail, 0, (label.height - height) / 2, label.width, height);
+    ctx.fillStyle = '#e8bf56';
+    ctx.fillRect(0, 0, label.width, label.height);
+    ctx.fillStyle = '#171717';
+    ctx.textAlign = 'center';
+    ctx.font = '900 104px "Montreux Jazz", sans-serif';
+    ctx.fillText('WORLD', 384, 118);
+    ctx.fillText('BUILDING', 384, 225);
+    // Keep the original Pikachu sprite, isolated from the article's UI collage.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(384, 467, 195, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(189, 272, 390, 390);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(thumbnail, 995, 110, 205, 220, 216, 287, 336, 360);
+    ctx.restore();
+    ctx.textAlign = 'start';
   } else if (artwork) {
     if (background) {
       const scale = Math.max(label.width / background.naturalWidth, label.height / background.naturalHeight);
@@ -60,8 +75,8 @@ function replaceLabel(source, anisotropy, artwork, shellColor, background, thumb
     ctx.drawImage(artwork, (label.width - logoWidth) / 2, (label.height - logoHeight) / 2, logoWidth, logoHeight);
   } else {
   ctx.save();
-  ctx.translate(192, 180);
-  ctx.scale(.5, .5);
+  ctx.translate(58, 54);
+  ctx.scale(.85, .85);
   ctx.fillStyle = '#111210';
   ctx.font = '900 300px "Montreux Jazz"';
   ctx.textBaseline = 'middle';
