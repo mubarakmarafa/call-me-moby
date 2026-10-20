@@ -20,16 +20,18 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
     { name: 'Goodnotes', html: education },
     { name: 'Config', html: `<h1>Human methods, new material.</h1><p>Designing with AI for the classroom.</p><p>Wendy Liao and I shared the design journey behind Goodnotes Classroom at Figma Config.</p><p><a href="https://www.youtube.com/watch?v=fLF8dwbC74o" target="_blank" rel="noopener noreferrer">Watch the Config talk ↗</a></p>` },
     { name: 'World-building', html: worldBuilding },
-    { name: 'Soon', html: '<h1>More on the way.</h1><p>A few things are still taking shape. Come back soon.</p>' },
+    { name: 'Labradoodle', html: '' },
   ];
-  let current = 0, open = false;
+  let current = -1, open = false;
   const scroll = panel.querySelector('.reader-scroll');
   const article = panel.querySelector('article');
   const triggers = [document.querySelector('#reader-sticker'), document.querySelector('#read-instead')];
   let trigger;
   let paperAnimation;
   function select(index, notify = false) {
+    if (current === index) { if (notify) onSelect(index); return; }
     current = index;
+    panel.classList.toggle('reader-game', index === 4);
     article.innerHTML = stories[index].html;
     article.querySelectorAll('[data-video]').forEach(button => {
       const link = document.createElement('a');
@@ -39,7 +41,7 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
       button.replaceWith(link);
     });
     article.querySelectorAll('[data-lcd-effect]').forEach(image => image.removeAttribute('data-lcd-effect'));
-    panel.querySelector('.reader-shelf-caption').textContent = `Reading ${stories[index].name}`;
+    panel.querySelector('.reader-shelf-caption').textContent = `${index === 4 ? "Playing" : "Reading"} ${stories[index].name}`;
     scroll.scrollTop = 0;
     if (notify) onSelect(index);
   }
@@ -83,5 +85,5 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
     if (event.key === 'Escape' && open) { event.preventDefault(); event.stopImmediatePropagation(); exitArticle(); }
   });
   select(0);
-  return { select, close: () => toggle(false), get current() { return current; }, get isOpen() { return open; } };
+  return { select, get gameHost() { return article; }, close: () => toggle(false), get current() { return current; }, get isOpen() { return open; } };
 }

@@ -107,6 +107,7 @@ function replaceLabel(source, anisotropy, artwork, shellColor, background, thumb
   texture.source = new THREE.Source(atlas);
   texture.anisotropy = anisotropy;
   texture.needsUpdate = true;
+  texture.userData.labelArtwork = label.toDataURL();
   return texture;
 }
 
@@ -126,6 +127,7 @@ export function createCartridge(gltf, renderer, { artwork, background, thumbnail
     geometry.scale(scale, scale, scale);
     const material = object.material.clone();
     material.map = replaceLabel(material.map, Math.min(8, renderer.capabilities.getMaxAnisotropy()), artwork, shellColor, background, thumbnail, cover);
+    group.userData.labelArtwork = material.map.userData.labelArtwork;
     material.roughness = .9;
     material.envMapIntensity = .18;
     group.add(new THREE.Mesh(geometry, material));

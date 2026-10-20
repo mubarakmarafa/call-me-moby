@@ -1,0 +1,18 @@
+{
+  "look": "toon",
+  "outlineEnabled": true,
+  "bands": 2,
+  "softness": 0,
+  "brushwork": 0,
+  "texture": 1,
+  "outlineWeight": 3,
+  "bloom": 0,
+  "bloomSpread": 0,
+  "outlineColor": "#985b2e",
+  "outlineRoundness": 1,
+  "outlineThreshold": 0.6,
+  "outlineInterior": 0.25,
+  "outlineWobble": 0.25,
+  "outlineGaps": 0.12,
+  "outlineGapScale": 0.5
+}

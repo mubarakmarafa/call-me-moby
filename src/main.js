@@ -18,6 +18,8 @@ import { LcdScreen } from './lcd/screen.js';
 import { educationArticle, mountEducationVideo } from './education.js';
 import { worldBuildingArticle } from './world-building.js';
 import { createReader } from './reader.js';
+import { createPuppyHost } from './puppy/host.js';
+import { preloadPuppy } from './puppy/preload.js';
 
 inject({ mode: import.meta.env.PROD ? 'production' : 'development', debug: false });
 
@@ -46,12 +48,12 @@ configHit.after(articleHit);
 const soonHit = document.createElement('button');
 soonHit.id = 'soon-cartridge-hit';
 soonHit.className = 'object-hit';
-soonHit.setAttribute('aria-label', 'Insert the coming soon cartridge');
+soonHit.setAttribute('aria-label', 'Insert the Labradoodle fetch cartridge');
 soonHit.hidden = true;
 articleHit.after(soonHit);
 const cartHits = [cartHit, educationHit, configHit, articleHit, soonHit];
 const FLOATING_CARTRIDGE_SCALE = .68;
-const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-building article', 'Coming soon'];
+const cartridgeNames = ['Moby', 'Goodnotes education', 'Config talk', 'World-building article', 'Labradoodle'];
 const cartridges = [];
 const cartridgeMotion = cartHits.map(() => ({ hovered: false, lift: 0, cursorX: 0, cursorY: 0, tiltX: 0, tiltY: 0, spin: 0 }));
 let activeCartridge = 0;
@@ -81,6 +83,7 @@ const reader = createReader({ about: aboutArticle, education: educationArticle, 
   animateReaderCurl(false);
   readerEntrance?.kill();
   readerEntering = open;
+  if (state === 'reading') { showCartridgeContent(); activateCartridgeContent(); }
   if (open) {
     enterReader(index);
     return;
@@ -104,6 +107,7 @@ const reader = createReader({ about: aboutArticle, education: educationArticle, 
 } });
 const videoPlayer = mountEducationVideo(screenElement);
 const closeVideo = videoPlayer.close;
+const puppy = createPuppyHost(screenElement, () => lcdScreen);
 function selectCartridge(index) {
   activeCartridge = index;
   cartridge = cartridges[index];
@@ -111,12 +115,32 @@ function selectCartridge(index) {
 }
 function showCartridgeContent() {
   closeVideo();
+  if (activeCartridge !== 4) puppy.stop();
   reader.select(activeCartridge);
   screenElement.querySelector('.lcd-article').classList.toggle('soon-content', activeCartridge === 4);
-  screenElement.querySelector('.lcd-article').innerHTML = activeCartridge === 4 ? '<img data-lcd-effect src="/images/soon-logo.png" alt="Yellow logo" /><p>soon</p>' : activeCartridge === 3 ? worldBuildingArticle : activeCartridge === 1 ? educationArticle : aboutArticle;
-  screenElement.querySelector('.lcd-scroll').setAttribute('aria-label', activeCartridge === 4 ? 'coming soon' : activeCartridge === 3 ? 'agentic product design is world-building' : activeCartridge === 1 ? 'goodnotes education' : 'about moby');
+  screenElement.querySelector('.lcd-article').innerHTML = activeCartridge === 4 ? '<img data-lcd-effect src="/images/soon-logo.png" alt="Yellow logo" /><p>let’s play fetch</p>' : activeCartridge === 3 ? worldBuildingArticle : activeCartridge === 1 ? educationArticle : aboutArticle;
+  screenElement.querySelector('.lcd-scroll').setAttribute('aria-label', activeCartridge === 4 ? 'Labradoodle fetch' : activeCartridge === 3 ? 'agentic product design is world-building' : activeCartridge === 1 ? 'goodnotes education' : 'about moby');
+  const article = screenElement.querySelector('.lcd-article');
+  article.classList.toggle('cartridge-artwork', reader.isOpen);
+  if (reader.isOpen) {
+    article.classList.remove('soon-content');
+    const artwork = document.createElement('img');
+    artwork.src = cartridges[activeCartridge].userData.labelArtwork;
+    artwork.alt = `${cartridgeNames[activeCartridge]} cartridge artwork`;
+    artwork.dataset.lcdEffect = '';
+    article.replaceChildren(artwork);
+  }
   screenElement.querySelector('.lcd-scroll').scrollTop = 0;
   lcdScreen?.refresh();
+}
+function activateCartridgeContent() {
+  lcdScreen?.setActive(reader.isOpen || activeCartridge !== 2);
+  if (activeCartridge === 4) {
+    void puppy.show(reader.isOpen ? reader.gameHost : screenElement, reader.isOpen);
+    instruction.textContent = 'Tap the floor or drag the ball to play fetch. Enter throws, Space pauses, Escape exits.';
+  } else if (activeCartridge === 2 && !reader.isOpen) {
+    videoPlayer.open('fLF8dwbC74o', 'Human methods, new material — Config', { standalone: true });
+  }
 }
 const pose = { x: 0, y: 0, z: 0, rx: .09, ry: -.30, rz: -.085 };
 const cameraTarget = new THREE.Vector3();
@@ -362,6 +386,9 @@ async function init() {
   if (reader.isOpen) swapReaderCartridge(reader.current);
   gsap.to('.loading',{opacity:0,duration:.25,onComplete:()=>$('.loading').hidden=true});
   animate();
+  const warmPuppy = () => { void preloadPuppy().catch(() => {}); };
+  if ('requestIdleCallback' in window) requestIdleCallback(warmPuppy, { timeout: 2000 });
+  else setTimeout(warmPuppy, 500);
 }
 
 function project(position) {const p=position.clone().project(camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2};}
@@ -555,7 +582,7 @@ function powerOn() {
   void deviceTilt.request();
   setState('waking');sound('power');powerHit.disabled=true;
   ledMaterial.color.set(0xff1428);rig.getObjectByName('power-glow').material.opacity=.5;
-  instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk, World-building or Coming soon. Drag it onto the Game Boy, or press Enter to insert.';
+  instruction.textContent='Choose a cartridge: Moby, Goodnotes education, Config talk, World-building or Labradoodle. Drag it onto the Game Boy, or press Enter to insert.';
   transition=gsap.timeline({onComplete:()=>{setState('ready');cartHits.forEach(hit=>hit.hidden=false);powerHit.hidden=true;cartHit.focus({preventScroll:true});}});
   transition.to(pose,{...readyPose(),duration:reducedMotion?0:needsDepthSeparation()?.7:.45,ease:'power3.inOut'},0);
   cartridges.forEach((cart,index)=>{
@@ -878,13 +905,8 @@ function swapReaderCartridge(index) {
     screenElement.classList.add('is-reading');
     screenElement.inert = false;
     gsap.set('.boot', { opacity: 0 });
-    lcdScreen?.setActive(activeCartridge !== 2);
-    if (activeCartridge === 2) {
-      // The small screen gets the same talk, without moving keyboard focus off the paper.
-      const focused = document.activeElement;
-      videoPlayer.open('fLF8dwbC74o', 'Human methods, new material — Config', { standalone: true });
-      focused?.focus({ preventScroll: true });
-    }
+    showCartridgeContent();
+    activateCartridgeContent();
     $('.reader-tools').hidden = reader.isOpen;
     instruction.textContent = `${cartridgeNames[index]} loaded.`;
     resizeScene();
@@ -1006,9 +1028,9 @@ function loadCartridge(fromDrag=false) {
     instruction.textContent=`${cartridgeNames[activeCartridge]} loaded. ${activeCartridge===2?'Press play to watch.':'Scroll to explore.'}`;
     screenElement.classList.add('is-reading');
     const scroll=screenElement.querySelector('.lcd-scroll');scroll.scrollTop=0;
-    lcdScreen?.setActive(activeCartridge!==2);
-    if(activeCartridge===2)videoPlayer.open('fLF8dwbC74o','Human methods, new material: designing with AI for the classroom — Config', {standalone:true});
-    else scroll.focus({preventScroll:true});
+    showCartridgeContent();
+    activateCartridgeContent();
+    if (activeCartridge !== 2 && activeCartridge !== 4) scroll.focus({preventScroll:true});
   });
 }
 
@@ -1044,6 +1066,7 @@ function exitReaderArticle() {
 function eject() {
   if(state!=='reading')return;
   if (reader.isOpen) reader.close();
+  puppy.stop();
   closeVideo();
   transition?.kill();
   gsap.killTweensOf([camera.position,cameraTarget,pose,cartridge.position,cartridge.rotation,cartridge.scale]);

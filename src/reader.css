@@ -53,3 +53,8 @@ body:is(.reader-open, .reader-closing) #html-scene { z-index: 12; }
 .reader-mode-toggle:hover { color: #302e29; background: #302e2908; }
 .reader-mode-toggle svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 0; stroke-linecap: round; stroke-linejoin: round; }
 .reader-mode-toggle circle { fill: currentColor; stroke: none; }
+
+#reader-pane.reader-game{background:#e8e4cf}
+.reader-game .reader-scroll{position:relative;padding:0;overflow:hidden;mask-image:none}
+.reader-game .reader-topline::after{display:none}
+.reader-game .reader-article{position:absolute;inset:0;max-width:none;margin:0}

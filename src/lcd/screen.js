@@ -227,6 +227,12 @@ export class LcdScreen {
     }
   }
 
+  setLiveScene(liveScene) {
+    this.liveScene = liveScene;
+    this.composite.uniforms.hasHistory.value = 0;
+    this.invalidate();
+  }
+
   prepareBoot(logo) {
     this.bootLogo = logo;
     this.bootCanvas = document.createElement('canvas');
@@ -242,6 +248,9 @@ export class LcdScreen {
     this.active = true;
     this.root.classList.add('is-booting');
     this.replay();
+    // Replace the previous cartridge frame before the screen is revealed.
+    cancelAnimationFrame(this.frame);this.frame=0;
+    this.render(performance.now(), true);
   }
 
   drawBoot(elapsed, reduced) {
@@ -278,9 +287,9 @@ export class LcdScreen {
     this.renderer.render(this.scene, this.camera);
   }
 
-  render(time) {
+  render(time, prepareHidden = false) {
     this.frame = 0;
-    if (!this.active || !this.texture || this.lost || document.hidden || !this.onScreen) return;
+    if (!this.active || (!this.texture && !this.booting) || this.lost || document.hidden || (!this.onScreen && !prepareHidden)) return;
     const reduced = this.motionQuery.matches;
     const elapsed = time - this.revealStart;
     const reveal = reduced || this.booting ? 1 : Math.min(1, elapsed / 180);
@@ -288,10 +297,15 @@ export class LcdScreen {
       this.drawBoot(elapsed, reduced);
       this.dirty = true;
     }
-    this.quantize.uniforms.source.value = this.booting ? this.bootTexture : this.texture;
+    const live = !this.booting && this.liveScene;
+    if (live) {
+      live.render(this.renderer, Math.min(.04, Math.max(0, (time - this.lastFrame) / 1000)));
+      this.dirty = true;
+    }
+    this.quantize.uniforms.source.value = this.booting ? this.bootTexture : live ? live.texture : this.texture;
     this.quantize.uniforms.sourceSize.value.set(
-      this.booting ? 640 : this.texture.image.width,
-      this.booting ? 565 : this.texture.image.height,
+      this.booting ? 640 : live ? live.texture.image.width : this.texture.image.width,
+      this.booting ? 565 : live ? live.texture.image.height : this.texture.image.height,
     );
     this.quantize.uniforms.viewSize.value.set(
       this.booting ? 640 : this.scroll.clientWidth,
@@ -299,7 +313,7 @@ export class LcdScreen {
     );
     if (this.dirty || this.quantize.uniforms.reveal.value !== reveal) {
       this.quantize.uniforms.reveal.value = reveal;
-      this.quantize.uniforms.scrollY.value = this.booting ? 0 : this.scroll.scrollTop;
+      this.quantize.uniforms.scrollY.value = this.booting || live ? 0 : this.scroll.scrollTop;
       this.draw(this.quantize, this.qTarget);
       this.draw(this.color, this.cTarget);
       this.dirty = false;
@@ -314,7 +328,7 @@ export class LcdScreen {
     this.composite.uniforms.hasHistory.value = 1;
     this.lastFrame = time;
     const settling = reduced ? 0 : 8 * (8 + 102 * this.params.ghostStrength);
-    if (reveal < 1 || (this.booting && !reduced && elapsed < 600) || time - this.changedAt < settling) this.frame = requestAnimationFrame(next => this.render(next));
+    if (live || reveal < 1 || (this.booting && !reduced && elapsed < 600) || time - this.changedAt < settling) this.frame = requestAnimationFrame(next => this.render(next));
   }
 
   destroy() {
