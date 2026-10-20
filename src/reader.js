@@ -10,6 +10,9 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
       <div class="reader-shelf" aria-label="Cartridge shelf"><span class="reader-shelf-caption" aria-live="polite">Pick a cartridge</span></div>
       <button class="reader-mode-toggle" aria-label="Read this article on the Game Boy" title="Read on the Game Boy"><svg viewBox="380 379 264 264" aria-hidden="true"><path d="m459 389h106c25 0 45 20 45 45v154c0 25-20 45-45 45h-106c-25 0-45-20-45-45v-154c0-25 20-45 45-45zm2 30.5c-10.2 0-18.5 8.3-18.5 18.5v57c0 10.2 8.3 18.5 18.5 18.5h102c10.2 0 18.5-8.3 18.5-18.5v-57c0-10.2-8.3-18.5-18.5-18.5zm1.5 114.5c-5.4 0-8.3 3.5-8.3 8.5v9.2h-9.2c-5.4 0-8.5 3.6-8.5 8.8v3.2c0 5.3 3.2 8.4 8.5 8.4h9.2v9.4c0 5.4 3.1 8.4 8.3 8.4h3.5c5.4 0 8.4-3.1 8.4-8.4v-9.4h9.3c5.4 0 8.4-3.2 8.4-8.4v-3.3c0-5.4-3.1-8.7-8.4-8.7h-9.3v-9.2c0-5.3-3.1-8.5-8.4-8.5zm124.5 16.8a14.9 14.9 0 1 0-29.8 0 14.9 14.9 0 1 0 29.8 0zm-33.4 24.7a14.9 14.9 0 1 0-29.8 0 14.9 14.9 0 1 0 29.8 0z" fill="currentColor" fill-rule="evenodd"/></svg></button>
       <button class="reader-close" aria-label="Exit article" title="Exit article">×</button>
+      <div class="reader-blur" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
     <div class="reader-scroll" tabindex="0" aria-label="Reader article">
       <article class="reader-article"></article>
@@ -66,6 +69,9 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
         panel.hidden = true;
         document.body.classList.remove('reader-closing');
       }
+      // A retained opacity animation breaks masked backdrop compositing in Chromium.
+      paperAnimation.cancel();
+      paperAnimation = null;
     };
     document.body.classList.toggle('reader-open', open);
     triggers.forEach(button => button.setAttribute('aria-expanded', String(open)));

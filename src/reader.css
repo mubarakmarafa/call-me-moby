@@ -18,8 +18,28 @@ body.reader-open footer { display: grid; z-index: 12; background: none; padding-
 .reader-close { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; font-size: 25px; font-weight: 300; color: #8b857a; z-index: 14; }
 .reader-close:hover { color: #302e29; }
 #reader-pane :focus-visible:not(.reader-scroll) { outline: 2px solid #a66a40; outline-offset: -2px; }
-.reader-scroll { outline: none; mask-image: linear-gradient(to bottom, transparent, #000 36px); }
-.reader-topline::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: 36px; z-index: 2; pointer-events: none; backdrop-filter: blur(5px); mask-image: linear-gradient(#000, transparent); }
+.reader-scroll { outline: none; }
+.reader-blur {
+  position: absolute; top: 100%; left: 0; right: 0; height: 64px;
+  z-index: 2; pointer-events: none; user-select: none;
+}
+.reader-blur > span {
+  position: absolute; inset: 0;
+  -webkit-backdrop-filter: blur(var(--blur));
+  backdrop-filter: blur(var(--blur));
+  mask-image: linear-gradient(to bottom, #000 0%, #000 var(--fade-start), transparent var(--fade-end));
+}
+/* Smallest blur reaches furthest; every layer fades before its bottom edge. */
+.reader-blur > :nth-child(1) { --blur: .5px; --fade-start: 70%; --fade-end: 100%; }
+.reader-blur > :nth-child(2) { --blur: 1px; --fade-start: 50%; --fade-end: 85%; }
+.reader-blur > :nth-child(3) { --blur: 2px; --fade-start: 30%; --fade-end: 70%; }
+.reader-blur > :nth-child(4) { --blur: 4px; --fade-start: 15%; --fade-end: 55%; }
+.reader-blur > :nth-child(5) { --blur: 8px; --fade-start: 0%; --fade-end: 40%; }
+.reader-blur > :nth-child(6) { --blur: 12px; --fade-start: 0%; --fade-end: 25%; }
+.reader-blur::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, #f5f1e8 0%, #f5f1e8e6 12%, #f5f1e880 36%, #f5f1e820 65%, #f5f1e800 100%);
+}
 :is(.reader-open, .reader-closing) #webgl { z-index: 11; pointer-events: none; }
 body:is(.reader-open, .reader-closing) #html-scene { z-index: 12; }
 .reader-open .object-hit, .reader-open .console-hit { z-index: 13; }
@@ -56,5 +76,5 @@ body:is(.reader-open, .reader-closing) #html-scene { z-index: 12; }
 
 #reader-pane.reader-game{background:#e8e4cf}
 .reader-game .reader-scroll{position:relative;padding:0;overflow:hidden;mask-image:none}
-.reader-game .reader-topline::after{display:none}
+.reader-game .reader-blur{display:none}
 .reader-game .reader-article{position:absolute;inset:0;max-width:none;margin:0}
