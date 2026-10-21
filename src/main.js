@@ -364,12 +364,12 @@ async function init() {
   educationCover.src = '/images/cartridges/education.png';
   const configCover = new Image();
   configCover.src = '/images/cartridges/config.png';
-  const articleHero = new Image();
-  articleHero.src = '/images/world-building-pokemon.png';
+  const bulbasaurSprite = new Image();
+  bulbasaurSprite.src = '/images/cartridges/bulbasaur.png';
   const soonLogo = new Image();
   soonLogo.src = '/images/soon-logo.png';
-  await Promise.all([soonLogo.decode(), educationCover.decode(), configCover.decode(), articleHero.decode()]);
-  for (const appearance of [{ shellColor: '#e57c18' }, { cover: educationCover, shellColor: '#2073ca' }, { cover: configCover, shellColor: '#a84f50' }, { thumbnail: articleHero, shellColor: null }, { cover: soonLogo, shellColor: '#171717' }]) {
+  await Promise.all([soonLogo.decode(), educationCover.decode(), configCover.decode(), bulbasaurSprite.decode()]);
+  for (const appearance of [{ shellColor: '#e57c18' }, { cover: educationCover, shellColor: '#2073ca' }, { cover: configCover, shellColor: '#a84f50' }, { thumbnail: bulbasaurSprite, shellColor: '#9dce82' }, { cover: soonLogo, shellColor: '#171717' }]) {
     const cart = createCartridge(cartridgeGltf, renderer, appearance);
     cart.position.copy(cartHome(cartridges.length));cart.scale.setScalar(FLOATING_CARTRIDGE_SCALE);
     const rotation=cartRotation(cartridges.length);cart.rotation.set(rotation.x,rotation.y,rotation.z);cart.visible=false;scene.add(cart);cartridges.push(cart);

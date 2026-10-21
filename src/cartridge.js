@@ -45,14 +45,14 @@ function replaceLabel(source, anisotropy, artwork, shellColor, background, thumb
     // Label artwork is composed for this surface; keep all title edges visible.
     ctx.drawImage(cover, 0, 0, label.width, label.height);
   } else if (thumbnail) {
-    ctx.fillStyle = '#79b9df';
+    ctx.fillStyle = '#66a85b';
     ctx.fillRect(0, 0, label.width, label.height);
     ctx.fillStyle = '#171717';
     ctx.textAlign = 'center';
     ctx.font = '900 104px "Montreux Jazz", sans-serif';
     ctx.fillText('WORLD', 384, 118);
     ctx.fillText('BUILDING', 384, 225);
-    // Keep the original Squirtle sprite, isolated from the article's UI collage.
+    // Keep the Bulbasaur sprite crisp at the cartridge's small display size.
     ctx.save();
     ctx.beginPath();
     ctx.arc(384, 467, 195, 0, Math.PI * 2);
@@ -60,7 +60,7 @@ function replaceLabel(source, anisotropy, artwork, shellColor, background, thumb
     ctx.fillStyle = '#fff';
     ctx.fillRect(189, 272, 390, 390);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(thumbnail, 112, 110, 205, 220, 216, 287, 336, 360);
+    ctx.drawImage(thumbnail, 28, 30, 35, 33, 226, 318, 315, 297);
     ctx.restore();
     ctx.textAlign = 'start';
   } else if (artwork) {
