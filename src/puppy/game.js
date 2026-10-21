@@ -41,17 +41,25 @@ export async function createPuppyGame(surface, { onPlayMilestone = () => {}, onC
   let showChip=false,chipElapsed=0;
   function drawChip(focused=false){
     chipContext.clearRect(0,0,400,128);
-    chipContext.fillStyle='#e9e4cd';chipContext.beginPath();chipContext.roundRect(0,0,400,128,64);chipContext.fill();
-    if(focused){chipContext.strokeStyle='#111310';chipContext.lineWidth=4;chipContext.beginPath();chipContext.roundRect(8,8,384,112,56);chipContext.stroke();}
-    chipContext.fillStyle='#050605';chipContext.font='700 44px "Geist Mono", monospace';
+    chipContext.fillStyle=(document.documentElement.dataset.theme === 'dark')?'#454646':'#e9e4cd';chipContext.beginPath();chipContext.roundRect(0,0,400,128,64);chipContext.fill();
+    if(focused){chipContext.strokeStyle=(document.documentElement.dataset.theme === 'dark')?'#e6bd85':'#111310';chipContext.lineWidth=4;chipContext.beginPath();chipContext.roundRect(8,8,384,112,56);chipContext.stroke();}
+    chipContext.fillStyle=(document.documentElement.dataset.theme === 'dark')?'#e9e6df':'#050605';chipContext.font='700 44px "Geist Mono", monospace';
     chipContext.textAlign='center';chipContext.textBaseline='middle';chipContext.fillText('try now ↗',200,64);
     chipTexture.needsUpdate=true;
   }
-  drawChip();
+  function syncAppearance() {
+    const dark = (document.documentElement.dataset.theme === 'dark');
+    scene.background.set(dark ? '#303131' : '#e8e4cf');
+    floor.material.color.copy(scene.background);
+    grid.material.color.set(dark ? '#a6a69e' : '#aaa990');
+    drawChip(surface.querySelector('.puppy-try-chip') === document.activeElement);
+  }
+  syncAppearance();
   const recordPlay=createPlayMilestone(()=>{showChip=true;chipElapsed=0;onPlayMilestone();onChipOffset(reducedMotion.matches?0:96);});
   const target=new THREE.WebGLRenderTarget(616,541);
   const ray=new THREE.Raycaster(),point=new THREE.Vector2();
   const listeners=new AbortController();
+  window.addEventListener('appearancechange', syncAppearance, { signal: listeners.signal });
   let groundTap=null;
   let drag=null,paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
   dog.setPaused(paused);
