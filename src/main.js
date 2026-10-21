@@ -1140,7 +1140,7 @@ stageObserver.observe($('#stage'));
 init().catch((error)=>{
   console.error('Could not load the Game Boy:',error);
   setState('error');$('#loading-label').textContent='The Game Boy couldn’t load. You can still read about me below.';
-  $('.loading-pixel').style.display='none';$('#read-instead').textContent='Read about Moby ↗';
+  $('.loading-pixel').style.display='none';$('#read-instead').hidden=false;
 });
 
 if(import.meta.hot){

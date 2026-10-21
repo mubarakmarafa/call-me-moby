@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#090a0b" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f4ef" />
+    <script src="/appearance.js"></script>
     <meta name="description" content="Moby's little corner of the internet. Insert a cartridge and get to know the designer behind the work." />
     <title>call me moby</title>
     <link rel="icon" type="image/svg+xml" href="/gameboy-favicon.svg?v=3" />
@@ -21,6 +23,7 @@
         <button id="power-hit" class="object-hit" aria-label="Turn on the Game Boy" disabled></button>
         <button id="cartridge-hit" class="object-hit" aria-label="Insert the Moby cartridge" hidden></button>
         <div class="sr-only" aria-live="polite"><span id="instruction-text">Click the Game Boy to begin.</span></div>
+        <button id="read-instead" class="reader-fallback" hidden>Read about Moby ↗</button>
         <div class="reader-tools" hidden><button id="eject" class="utility" aria-label="Eject cartridge" title="Eject cartridge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-8 6 8zM6 19h12"/></svg></button></div>
         <div id="screen-content" class="lcd" inert>
           <div class="boot" aria-hidden="true"><div class="boot-logo"></div><span class="boot-progress"></span></div>
@@ -40,7 +43,10 @@
         </div>
 
       </main>
-      <footer><button id="read-instead" class="utility" aria-label="Open reader mode" title="Reader mode"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v6M12 7v1"/></svg></button>
+      <footer><button id="appearance-toggle" class="utility" aria-label="Switch to dark mode" title="Switch to dark mode">
+        <svg class="appearance-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 13a8.5 8.5 0 0 1-9.5-9.5A8.5 8.5 0 1 0 20.5 13Z"/></svg>
+        <svg class="appearance-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+      </button>
         <nav class="social-links" aria-label="Social links">
           <a href="https://www.linkedin.com/in/mubarakmarafa/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" title="LinkedIn"><img src="/images/social/linkedin.svg" alt="" /></a>
           <a href="https://x.com/mubarak_marafa" target="_blank" rel="noopener noreferrer" aria-label="Twitter" title="Twitter"><img src="/images/social/twitter.svg" alt="" /></a>
