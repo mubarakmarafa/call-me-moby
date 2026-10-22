@@ -568,16 +568,27 @@ function updateConsoleControls(){
     control.hit.hidden=!visible||p.x<0||p.x>width||p.y<0||p.y>height;
     if(!control.hit.hidden)positionHit(control.hit,control.mesh,name==='pad'?.65:.34,name==='pad'?.65:.34,world);
   }
-  // Expand the narrow buttons outward, so their touch targets never overlap.
-  const start=consoleControls.start?.hit, select=consoleControls.select?.hit;
-  if(start&&!start.hidden&&select&&!select.hidden){
-    const sx=parseFloat(start.style.left),sy=parseFloat(start.style.top);
-    const lx=parseFloat(select.style.left),ly=parseFloat(select.style.top);
-    const dx=sx-lx,dy=sy-ly,distance=Math.hypot(dx,dy);
-    if(distance>0&&distance<52){
-      const offset=(52-distance)/2;
-      start.style.left=`${sx+dx/distance*offset}px`;start.style.top=`${sy+dy/distance*offset}px`;
-      select.style.left=`${lx-dx/distance*offset}px`;select.style.top=`${ly-dy/distance*offset}px`;
+  // Separate neighboring controls while keeping each physical button in its hit area.
+  const pairs = [[consoleControls.start?.hit, consoleControls.select?.hit]];
+  if (mobile() || matchMedia('(pointer: coarse)').matches) pairs.push([consoleControls.a?.hit, consoleControls.b?.hit]);
+  for (const [first, second] of pairs) {
+    if (!first || first.hidden || !second || second.hidden) continue;
+    const x1 = parseFloat(first.style.left), y1 = parseFloat(first.style.top);
+    const x2 = parseFloat(second.style.left), y2 = parseFloat(second.style.top);
+    const dx = x1 - x2, dy = y1 - y2;
+    const separation = Math.max(Math.abs(dx), Math.abs(dy));
+    if (separation > 0 && separation < 52) {
+      const offset = (52 / separation - 1) / 2;
+      first.style.left = `${x1 + dx * offset}px`; first.style.top = `${y1 + dy * offset}px`;
+      second.style.left = `${x2 - dx * offset}px`; second.style.top = `${y2 - dy * offset}px`;
+    }
+  }
+  if (mobile() || matchMedia('(pointer: coarse)').matches) {
+    const upper = ['pad', 'a', 'b'].map(name => consoleControls[name]?.hit).filter(hit => hit && !hit.hidden);
+    const lowerTop = Math.max(...upper.map(hit => parseFloat(hit.style.top) + Math.max(48, parseFloat(hit.style.height)) / 2)) + 4;
+    for (const name of ['start', 'select']) {
+      const hit = consoleControls[name]?.hit;
+      if (hit && !hit.hidden && upper.length) hit.style.top = `${Math.max(parseFloat(hit.style.top), lowerTop + 24)}px`;
     }
   }
 }
@@ -785,8 +796,14 @@ function updateScreenProjection() {
 
 function readingView() {
   if (reader.isOpen) return { distance: cameraDistance(), target: new THREE.Vector3() };
-  const usableWidth=Math.min(width*(mobile()?.91:.60),660);
-  const usableHeight=Math.min(height*(mobile()?.55:.66),600);
+  if (width <= 700 || (width <= 900 && height < 500)) {
+    // Fit the complete shell, including the README sticker and lower controls.
+    const pixelsPerUnit = Math.min((width - 48) / 3.4, Math.max(160, height - 220) / 5.3);
+    const distance = height / (2 * pixelsPerUnit * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    return { distance: distance + .5, target: new THREE.Vector3(0, .12, 0) };
+  }
+  const usableWidth=Math.min(width*.60,660);
+  const usableHeight=Math.min(height*.66,600);
   const pixelsPerUnit=Math.min(usableWidth/screenWidth,usableHeight/screenHeight);
   const distance=(height/2)/(pixelsPerUnit*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)));
   return {distance:distance+screenPosition.z,target:screenPosition.clone().add(new THREE.Vector3(0,-.12,0))};
