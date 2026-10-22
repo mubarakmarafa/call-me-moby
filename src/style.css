@@ -85,10 +85,22 @@ footer{position:absolute;z-index:9;bottom:0;left:0;right:0;padding:22px 32px;dis
 /* Montreux Black cv ink spans -12..549 of 1000 units; center its ink, not its font ascenders. */
 .social-links .cv-link span{display:block;line-height:.561em;transform:translateY(-.1135em)}
 .social-links a:is(:hover,:focus-visible) :is(img,span){filter:var(--icon-highlight-filter)}
-.credits{justify-self:end;position:relative;font:9px 'Space Mono',monospace;letter-spacing:.2px;text-align:right}
+.site-notices{justify-self:end;position:relative;display:flex;align-items:center;gap:6px;text-align:right;white-space:nowrap}
+.notice-separator{font:9px 'Space Mono',monospace}
+.analytics-notice{font:9px 'Space Mono',monospace;letter-spacing:.2px}
+.analytics-notice summary{cursor:pointer;list-style:none;padding:12px 0}
+.analytics-notice summary::-webkit-details-marker{display:none}
+.analytics-card{position:fixed;top:26px;left:32px;width:300px;max-width:calc(100vw - 34px);padding:18px;background:var(--popover);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--paper-shadow);text-align:left;color:var(--ink);white-space:normal;font:13px/1.6 'DM Sans',sans-serif;letter-spacing:0}
+body[data-state=reading] .analytics-card{top:82px}
+.analytics-card p{margin:0 0 14px}
+.analytics-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:12px}
+.analytics-actions a{text-underline-offset:3px;color:var(--muted)}
+.analytics-actions button{min-height:44px;padding:0 14px;border:1px solid var(--rule);border-radius:6px}
+.analytics-actions button:hover{background:var(--hover)}
+.credits{justify-self:end;font:9px 'Space Mono',monospace;letter-spacing:.2px;text-align:right}
 .credits summary{cursor:pointer;list-style:none;padding:12px 0}
 .credits summary::-webkit-details-marker{display:none}
-.credits div{position:absolute;bottom:40px;right:0;width:320px;max-width:calc(100vw - 48px);padding:16px;background:var(--popover);border:1px solid var(--rule);border-radius:8px;line-height:2;text-align:left}
+.credits div{position:absolute;bottom:40px;right:0;width:320px;max-width:calc(100vw - 48px);padding:16px;background:var(--popover);border:1px solid var(--rule);border-radius:8px;line-height:2;text-align:left;white-space:normal}
 .credits a{text-underline-offset:3px}
 .eyebrow{font:9px 'Space Mono',monospace;letter-spacing:2px;color:var(--muted)}
 body[data-state=reading] #html-scene{z-index:5}
@@ -130,7 +142,9 @@ body[data-state=reading] .sound-toggle,body[data-state=reading] .reader-tools .u
 .compact .lcd-article p{margin-bottom:24px}
 .compact .boot-logo{width:250px}
 @media(max-width:600px){
- header{padding:15px 17px}.reader-tools{top:15px;left:17px}footer{padding:16px 17px}.credits{font-size:8px}.loading{font-size:9px}
+ .analytics-card{top:15px;left:17px}
+ body[data-state=reading] .analytics-card{top:71px}
+ header{padding:15px 17px}.reader-tools{top:15px;left:17px}footer{padding:16px 17px}.credits,.analytics-notice{font-size:8px}.loading{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important}}
 
