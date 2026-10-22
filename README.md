@@ -179,3 +179,15 @@ Video is rendered by YouTube’s native player inside the screen, not sampled th
 - 13 October 2026: made A, B and the D-pad interactive. A wakes the console or inserts the selected cartridge; B ejects while reading and gives the empty prompt a small bounce; the D-pad selects cartridges spatially with forward motion and a screen description. Controls press into the actual model and play a muted-aware soft click. No D-pad scrolling while reading. Model triangle preservation, directional navigation, tilt and projection tests pass; browser visual review remains blocked in this session. Corrected mobile pointer-down depth to retain the deeper receiving pose.
 
 - 13 October 2026: added physical Start and Select controls with separated, minimum-48px touch targets. Start wakes the console; Select toggles sound and flashes a speaker glyph on the 3D screen. D-pad selection triggers a short full cartridge spin, disabled for reduced motion and cancelled on navigation transitions. Verified all five control meshes preserve source triangles, 14 tests and production build. Browser visual verification remains unavailable.
+
+## Shareable pages
+
+Each content URL opens directly in reader mode. Direct visits and refreshes start in the settled layout without the paper, cartridge, or camera entrance animations; interactions within the site still animate. Copy the address bar after selecting a cartridge or changing modes.
+
+- `/about` — Moby
+- `/goodnotes` — Goodnotes education case study
+- `/config` — Config talk
+- `/world-building` — World-building essay
+- `/labradoodle` — Labradoodle fetch
+
+Append `?mode=gameboy` to any page for its Game Boy view, for example `/goodnotes?mode=gameboy`. `/` is the portfolio entrance. Browser Back and Forward restore the page and view. Vercel rewrites serve the app for direct visits and refreshes of these paths.

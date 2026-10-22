@@ -18,6 +18,7 @@ import { LcdScreen } from './lcd/screen.js';
 import { educationArticle, mountEducationVideo } from './education.js';
 import { worldBuildingArticle } from './world-building.js';
 import { createReader } from './reader.js';
+import { readRoute, createRouteHistory } from './routes.js';
 import { createPuppyHost } from './puppy/host.js';
 import { preloadPuppy } from './puppy/preload.js';
 
@@ -79,13 +80,16 @@ readerSticker.addEventListener('pointerleave', () => animateReaderCurl(false));
 readerSticker.addEventListener('focus', () => animateReaderCurl(true));
 readerSticker.addEventListener('blur', () => animateReaderCurl(false));
 
-const reader = createReader({ about: aboutArticle, education: educationArticle, worldBuilding: worldBuildingArticle, onSelect: swapReaderCartridge, onExit: exitReaderArticle, onToggle: (open, index) => {
-  animateReaderCurl(false);
+const routeHistory = createRouteHistory(window);
+
+const reader = createReader({ about: aboutArticle, education: educationArticle, worldBuilding: worldBuildingArticle, onSelect: swapReaderCartridge, onExit: exitReaderArticle, onToggle: (open, index, { instant }) => {
+  routeHistory.write({ index, mode: open ? 'reader' : 'gameboy' });
+  if (!instant) animateReaderCurl(false);
   readerEntrance?.kill();
   readerEntering = open;
-  if (state === 'reading') { showCartridgeContent(); activateCartridgeContent(); }
+  if (state === 'reading' && (!open || index === activeCartridge)) { showCartridgeContent(); activateCartridgeContent(); }
   if (open) {
-    enterReader(index);
+    enterReader(index, { instant });
     return;
   }
   gsap.to(readerFrameMotion, { value: 0, duration: reducedMotion ? 0 : .7, ease: 'power3.inOut', overwrite: true });
@@ -114,6 +118,7 @@ function selectCartridge(index) {
   cartHit = cartHits[index];
 }
 function showCartridgeContent() {
+  routeHistory.write({ index: activeCartridge, mode: reader.isOpen ? 'reader' : 'gameboy' });
   closeVideo();
   if (activeCartridge !== 4) puppy.stop();
   reader.select(activeCartridge);
@@ -381,8 +386,10 @@ async function init() {
   if(inspection==='back'||inspection==='seated-back')Object.assign(pose,{rx:-.15,ry:Math.PI+.25,rz:0});
   if(inspection==='seated-back'){rig.add(cartridge);cartridge.visible=true;cartridge.position.copy(cartridge.userData.seatedPosition);cartridge.rotation.set(0,Math.PI,0);cartridge.scale.setScalar(CARTRIDGE_INSERT_SCALE);}
   setState('idle');powerHit.disabled=false;
-  if (reader.isOpen) swapReaderCartridge(reader.current);
-  gsap.to('.loading',{opacity:0,duration:.25,onComplete:()=>$('.loading').hidden=true});
+  if (readRoute(location).index !== null) applyRoute({ instant: true });
+  else if (reader.isOpen) swapReaderCartridge(reader.current);
+  if (readRoute(location).index !== null) $('.loading').hidden = true;
+  else gsap.to('.loading',{opacity:0,duration:.25,onComplete:()=>$('.loading').hidden=true});
   animate();
   const warmPuppy = () => { void preloadPuppy().catch(() => {}); };
   if ('requestIdleCallback' in window) requestIdleCallback(warmPuppy, { timeout: 2000 });
@@ -808,7 +815,16 @@ function readerCartridgeRotation(index) {
   return { x: 0, y: -.52, z: 0 };
 }
 
-function enterReader(index) {
+function enterReader(index, { instant = false } = {}) {
+  if (instant) {
+    readerFraming = readerFrameMotion.value = 1;
+    const curl = rig.getObjectByName('Reader sticker')?.userData.curl;
+    if (curl) curl.value = 0;
+    swapReaderCartridge(index, { instant: true });
+    camera.lookAt(cameraTarget);
+    settleReaderShelf({ instant: true });
+    return;
+  }
   cartHits.forEach(hit => hit.hidden = true);
   readerEntrance = gsap.timeline();
   cartridges.forEach((cart, i) => {
@@ -826,14 +842,15 @@ function enterReader(index) {
   readerEntrance.call(settleReaderShelf, null, reducedMotion ? 0 : .98);
 }
 
-function settleReaderShelf() {
+function settleReaderShelf({ instant = false } = {}) {
   if (!reader.isOpen || !readerEntering) return;
   if (state !== 'reading') {
     readerEntrance = gsap.delayedCall(.05, settleReaderShelf);
     return;
   }
   camera.updateMatrixWorld(true);
-  readerEntrance = gsap.timeline({ onComplete: () => { readerEntering = false; } });
+  if (instant) readerEntering = false;
+  else readerEntrance = gsap.timeline({ onComplete: () => { readerEntering = false; } });
   let slot = 0;
   cartridges.forEach((cart, i) => {
     if (i === activeCartridge) return;
@@ -842,17 +859,18 @@ function settleReaderShelf() {
     const rotation = readerCartridgeRotation(i);
     const scale = readerCartridgeScale();
     cart.position.copy(home);
-    cart.position.y += scale * 3.8;
+    if (!instant) cart.position.y += scale * 3.8;
     cart.rotation.set(rotation.x, rotation.y, rotation.z);
     cart.scale.setScalar(scale);
-    cart.visible = false;
+    cart.visible = instant;
+    if (instant) return;
     const at = reducedMotion ? 0 : slot++ * .045;
     readerEntrance.set(cart, { visible: true }, at);
     readerEntrance.to(cart.position, { ...home, duration: reducedMotion ? 0 : .4, ease: 'power3.out' }, at);
   });
 }
 
-function swapReaderCartridge(index) {
+function swapReaderCartridge(index, { instant = false } = {}) {
   if (!cartridges.length || state === 'loading' || state === 'error') return;
   if (['reading', 'swapping'].includes(state) && activeCartridge === index) {
     if (state === 'reading' && reader.isOpen && !readerEntering) cartridges.forEach((cart, i) => {
@@ -906,9 +924,11 @@ function swapReaderCartridge(index) {
     showCartridgeContent();
     activateCartridgeContent();
     $('.reader-tools').hidden = reader.isOpen;
+    if (!reader.isOpen) cartridges.forEach((cart, i) => { cart.visible = i === activeCartridge; });
     instruction.textContent = `${cartridgeNames[index]} loaded.`;
     resizeScene();
   };
+  if (instant) { finish(); return; }
   pose.ry = THREE.MathUtils.euclideanModulo(pose.ry + Math.PI, Math.PI * 2) - Math.PI;
   transition = gsap.timeline({ onComplete: finish });
   transition.to(pose, { x: 0, y: 0, z: 0, rx: .08, ry: -.22, rz: -.025, duration: duration(.18), ease: 'power2.out' }, 0);
@@ -1064,6 +1084,7 @@ function exitReaderArticle() {
 function eject() {
   if(state!=='reading')return;
   if (reader.isOpen) reader.close();
+  routeHistory.write({ index: null });
   puppy.stop();
   closeVideo();
   transition?.kill();
@@ -1136,6 +1157,28 @@ function resizeScene(animateCamera = false){
 window.addEventListener('resize',resizeScene);
 const stageObserver=new ResizeObserver(resizeScene);
 stageObserver.observe($('#stage'));
+
+function applyRoute({ instant = false } = {}) {
+  const route = readRoute(location);
+  if (route.index === null) {
+    if (reader.isOpen) reader.close();
+    exitReaderArticle();
+    return;
+  }
+  if (route.mode === 'reader') {
+    if (reader.isOpen) swapReaderCartridge(route.index, { instant });
+    else {
+      reader.select(route.index);
+      reader.open({ instant });
+    }
+  } else {
+    if (reader.isOpen) reader.close();
+    swapReaderCartridge(route.index, { instant });
+  }
+}
+window.addEventListener('popstate', () => {
+  if (state !== 'loading' && state !== 'error') applyRoute();
+});
 
 init().catch((error)=>{
   console.error('Could not load the Game Boy:',error);

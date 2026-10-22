@@ -48,34 +48,40 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
     scroll.scrollTop = 0;
     if (notify) onSelect(index);
   }
-  function toggle(value, source) {
+  function toggle(value, source, { instant = false } = {}) {
     open = value;
     if (source) trigger = source;
     paperAnimation?.cancel();
     panel.hidden = false;
     panel.inert = !open;
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    paperAnimation = panel.animate(open ? [
-      { opacity: 0, transform: 'translateY(60vh) rotate(2deg)' },
-      { opacity: 1, transform: 'translateY(0) rotate(0)' },
-    ] : [
-      { opacity: 1, transform: 'translateY(0) rotate(0)' },
-      { opacity: 0, transform: 'translateY(12vh) rotate(1deg)', offset: .65 },
-      { opacity: 0, transform: 'translateY(20vh) rotate(1deg)' },
-    ], { delay: reduced || !open ? 0 : 240, duration: reduced ? 0 : open ? 650 : 180, easing: open ? 'cubic-bezier(.22,1,.36,1)' : 'cubic-bezier(.4,0,1,1)', fill: 'both' });
-    document.body.classList.toggle('reader-closing', !open);
-    paperAnimation.onfinish = () => {
-      if (!open) {
-        panel.hidden = true;
-        document.body.classList.remove('reader-closing');
-      }
-      // A retained opacity animation breaks masked backdrop compositing in Chromium.
-      paperAnimation.cancel();
-      paperAnimation = null;
-    };
+    paperAnimation = null;
+    if (instant) {
+      panel.hidden = !open;
+      document.body.classList.remove('reader-closing');
+    } else {
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      paperAnimation = panel.animate(open ? [
+        { opacity: 0, transform: 'translateY(60vh) rotate(2deg)' },
+        { opacity: 1, transform: 'translateY(0) rotate(0)' },
+      ] : [
+        { opacity: 1, transform: 'translateY(0) rotate(0)' },
+        { opacity: 0, transform: 'translateY(12vh) rotate(1deg)', offset: .65 },
+        { opacity: 0, transform: 'translateY(20vh) rotate(1deg)' },
+      ], { delay: reduced || !open ? 0 : 240, duration: reduced ? 0 : open ? 650 : 180, easing: open ? 'cubic-bezier(.22,1,.36,1)' : 'cubic-bezier(.4,0,1,1)', fill: 'both' });
+      document.body.classList.toggle('reader-closing', !open);
+      paperAnimation.onfinish = () => {
+        if (!open) {
+          panel.hidden = true;
+          document.body.classList.remove('reader-closing');
+        }
+        // A retained opacity animation breaks masked backdrop compositing in Chromium.
+        paperAnimation.cancel();
+        paperAnimation = null;
+      };
+    }
     document.body.classList.toggle('reader-open', open);
     triggers.forEach(button => button.setAttribute('aria-expanded', String(open)));
-    onToggle(open, current);
+    onToggle(open, current, { instant });
     if (open) { scroll.focus({ preventScroll: true }); }
     else trigger?.focus({ preventScroll: true });
   }
@@ -91,5 +97,5 @@ export function createReader({ about, education, worldBuilding, onToggle, onSele
     if (event.key === 'Escape' && open) { event.preventDefault(); event.stopImmediatePropagation(); exitArticle(); }
   });
   select(0);
-  return { select, get gameHost() { return article; }, close: () => toggle(false), get current() { return current; }, get isOpen() { return open; } };
+  return { select, get gameHost() { return article; }, open: (options) => toggle(true, undefined, options), close: () => toggle(false), get current() { return current; }, get isOpen() { return open; } };
 }
