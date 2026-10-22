@@ -802,10 +802,13 @@ function updateScreenProjection() {
 function readingView() {
   if (reader.isOpen) return { distance: cameraDistance(), target: new THREE.Vector3() };
   if (width <= 700 || (width <= 900 && height < 500)) {
-    // Fit the complete shell, including the README sticker and lower controls.
-    const pixelsPerUnit = Math.min((width - 24) / 3.4, Math.max(160, height - 180) / 5.3);
+    // Portrait phones can fill more of the width while keeping the shell above the footer.
+    const portraitPhone = mobile() && height > width;
+    const pixelsPerUnit = portraitPhone
+      ? Math.min((width - 20) / 3.05, Math.max(160, height - 148) / 4.8)
+      : Math.min((width - 24) / 3.4, Math.max(160, height - 180) / 5.3);
     const distance = height / (2 * pixelsPerUnit * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    return { distance: distance + .5, target: new THREE.Vector3(0, .12, 0) };
+    return { distance: distance + .5, target: new THREE.Vector3(0, portraitPhone ? -.28 : .12, 0) };
   }
   const usableWidth=Math.min(width*.60,660);
   const usableHeight=Math.min(height*.66,600);
