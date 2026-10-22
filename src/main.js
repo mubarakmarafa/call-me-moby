@@ -198,15 +198,20 @@ function toggleSound() {
 }
 $('.sound-toggle').addEventListener('click', toggleSound);
 
-function cameraDistance() { if (reader.isOpen) return width <= 700 ? 42 : Math.max(17, 8.6 / camera.aspect); return mobile() ? Math.max(15.8, 7.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
+function cameraDistance() { if (reader.isOpen) return width <= 700 ? 42 : Math.max(17, 8.6 / camera.aspect); return mobile() ? Math.max(13.5, 6.4 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
 function homePose() { return { x:0, y:mobile()?-.1:0, z:0, rx:.09, ry:-.30, rz:-.085 }; }
 function cartHome(index = activeCartridge) {
   const side = index === 1 || index === 2 || index === 4 ? -1 : 1;
   const halfWidth = (cameraDistance() - .75) * Math.tan(THREE.MathUtils.degToRad(16)) * (width / height);
-  const x = side * (mobile() ? 1.35 : Math.min(3.25, halfWidth - 1.15));
+  const x = side * (mobile() ? Math.min(1.35, halfWidth - .85) : Math.min(3.25, halfWidth - 1.15));
   const offset = mobile() ? 0 : [0, .35, -.22, 0, -.12][index];
-  return new THREE.Vector3(x + offset,
-    mobile() ? [2.65, -2.6, 2.85, -2.95, .1][index] : [1.55, -2.05, 2.1, -1.1, 0][index], .75);
+  let y = mobile() ? [2.65, -2.6, 2.85, -2.95, .3][index] * .82 : [1.55, -2.05, 2.1, -1.1, 0][index];
+  if (mobile()) {
+    const pixelsPerUnit = width / (2 * halfWidth);
+    // Reserve the footer and the cartridge's rotated half-height plus its bobbing motion.
+    y = Math.max(y, (120 - height / 2) / pixelsPerUnit + .9);
+  }
+  return new THREE.Vector3(x + offset, y, .75);
 }
 function cartRotation(index = activeCartridge) {
   return [{ x: .08, y: -.20, z: -.16 }, { x: -.07, y: .20, z: .20 }, { x: .06, y: .16, z: .12 }, { x: -.04, y: -.18, z: -.12 }, { x: .04, y: .18, z: -.1 }][index];
@@ -798,7 +803,7 @@ function readingView() {
   if (reader.isOpen) return { distance: cameraDistance(), target: new THREE.Vector3() };
   if (width <= 700 || (width <= 900 && height < 500)) {
     // Fit the complete shell, including the README sticker and lower controls.
-    const pixelsPerUnit = Math.min((width - 48) / 3.4, Math.max(160, height - 220) / 5.3);
+    const pixelsPerUnit = Math.min((width - 24) / 3.4, Math.max(160, height - 180) / 5.3);
     const distance = height / (2 * pixelsPerUnit * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     return { distance: distance + .5, target: new THREE.Vector3(0, .12, 0) };
   }
