@@ -198,7 +198,7 @@ function toggleSound() {
 }
 $('.sound-toggle').addEventListener('click', toggleSound);
 
-function cameraDistance() { if (reader.isOpen) return width <= 700 ? 42 : Math.max(17, 8.6 / camera.aspect); return mobile() ? Math.max(15.8, 8.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
+function cameraDistance() { if (reader.isOpen) return width <= 700 ? 42 : Math.max(17, 8.6 / camera.aspect); return mobile() ? Math.max(15.8, 7.6 / camera.aspect) : Math.max(14.4, 12.8 / camera.aspect); }
 function homePose() { return { x:0, y:mobile()?-.1:0, z:0, rx:.09, ry:-.30, rz:-.085 }; }
 function cartHome(index = activeCartridge) {
   const side = index === 1 || index === 2 || index === 4 ? -1 : 1;
