@@ -262,10 +262,23 @@ async function init() {
     if(mat.map)mat.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
     if(mat.name==='Case'){
       mat.metalness=0;mat.roughness=.86;mat.roughnessMap=null;mat.metalnessMap=null;mat.envMapIntensity=.12;mat.normalScale.setScalar(.65);
-      mat.onBeforeCompile=(shader)=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
-        float cyan = smoothstep(0.02, 0.14, min(diffuseColor.g, diffuseColor.b) - diffuseColor.r);
-        vec3 yellow = vec3(diffuseColor.g * 1.7, diffuseColor.g * 0.385, diffuseColor.r * 0.055 + diffuseColor.g * 0.0025);
+      mat.onBeforeCompile=(shader)=>{
+        shader.vertexShader = 'varying vec3 vCasePosition;\n' + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvCasePosition = position;');
+        shader.fragmentShader = 'varying vec3 vCasePosition;\n' + shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+        // Restore uniform pigment across the rear cartridge recess and its side rails.
+        float cyan = smoothstep(0.12, 0.45, (min(diffuseColor.g, diffuseColor.b) - diffuseColor.r) / max(diffuseColor.g, 0.001));
+        float cleanRecess = cyan * (1.0 - smoothstep(0.10, 0.25, diffuseColor.g));
+        float rearRecess = smoothstep(1.48, 1.60, vCasePosition.y) * (1.0 - smoothstep(0.08, 0.18, vCasePosition.z));
+        float cleanPlastic = rearRecess * cyan;
+        cleanRecess = max(cleanRecess, cleanPlastic);
+        float pigment = mix(diffuseColor.g, 0.55, cleanRecess);
+        vec3 yellow = vec3(pigment * 1.7, pigment * 0.385, diffuseColor.r * 0.055 + pigment * 0.0025);
         diffuseColor.rgb = mix(diffuseColor.rgb, yellow, cyan);
+        `);
+        shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          normal = normalize(mix(normal, nonPerturbedNormal, cleanPlastic));
         `);
         shader.fragmentShader=shader.fragmentShader.replace('#include <opaque_fragment>', `
           vec3 lighting = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.001));
@@ -273,7 +286,7 @@ async function init() {
           float softBands = 0.57 + 0.17 * smoothstep(0.18, 0.58, lightLevel) + 0.20 * smoothstep(0.52, 1.12, lightLevel);
           outgoingLight = diffuseColor.rgb * softBands + min(totalSpecular, vec3(0.012));
           #ifdef USE_AOMAP
-            outgoingLight *= mix(0.64, 1.0, ambientOcclusion);
+            outgoingLight *= mix(mix(0.64, 1.0, ambientOcclusion), 1.0, cleanRecess);
           #endif
           #include <opaque_fragment>
         `);
@@ -283,7 +296,7 @@ async function init() {
           gl_FragColor.rgb *= mix(vec3(1.0), vec3(1.0, 0.97, 0.4), cyan);
         `);
       };
-      mat.customProgramCacheKey=()=> 'yellow-case-soft-bands-v4';
+      mat.customProgramCacheKey=()=> 'yellow-case-clean-recess-v6';
     }
     if(mat.name==='Glass'){
       glassOriginal=object;mat.emissive.set(0x000000);mat.emissiveIntensity=0;mat.transparent=true;mat.roughness=.82;mat.metalness=0;mat.metalnessMap=null;mat.roughnessMap=null;
