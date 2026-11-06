@@ -99,14 +99,14 @@ bullet('Lead product and interaction design for an AI-native productivity produc
 y += 5
 role('Goodnotes', 'Aug 2021 - Aug 2026')
 text('Product Designer → Senior Product Designer → Staff Product Designer (2025)', size=9.2, leading=12, color=MUTED, gap=7)
-bullet('<b>Classroom, from zero to launch.</b> Founding designer of Goodnotes Classroom, now Goodnotes Education. Led design from teacher research through the August 2024 launch, connecting lesson setup, handwritten-answer review and grading.')
+bullet('<b>Classroom, from zero to scale.</b> Founding designer of Goodnotes Classroom, now Goodnotes Education, which reached approximately <b><u>100k</u></b> monthly active users by November 2026. Led design from teacher research through its August 2024 launch.')
 bullet('<b>AI with teachers in control.</b> Designed answer clustering and refined Generate Hints through research and prompt testing. Worked with Stanford professors on responsible AI in the classroom.')
-bullet('<b>Interaction craft.</b> Created the original Apple Pencil Pro Palette design and partnered with design and engineering on contextual controls, motion and implementation.')
+bullet('<b>Interaction craft at scale.</b> Created the original Apple Pencil Pro Palette design for Goodnotes, Apple’s 2022 iPad App of the Year, with <b><u>25m+</u></b> monthly active users. Partnered with design and engineering on contextual controls, motion and implementation.')
 bullet('<b>Helping designers build.</b> Led AI adoption across the design function from 2025 through practical sessions and reusable prototypes. Hired and mentored two designers.')
 bullet('<b>Four first-place Hackweek teams.</b> Contributions included handwriting reflow and Sync &amp; Swim, whose work grew into production integrations developed further by the team.')
 y += 5
 role('PALO IT · Senior Consultant', '2019 - 2021')
-text('Partnered with founders on product strategy and prototypes. Designed a prototype and pitch deck supporting a US$2.5m fundraise within two months.', gap=8)
+text('Partnered with founders on product strategy and prototypes. Designed a prototype and pitch deck supporting a <b><u>US$2.5m</u></b> fundraise within two months.', gap=8)
 role('Entrepreneur First · Founder in Residence', '2018')
 text('Took Allorux, a qualitative-research tool, from idea and validation to beta.', gap=8)
 role('Oyalabs · UX/UI Designer', '2017 - 2018')
